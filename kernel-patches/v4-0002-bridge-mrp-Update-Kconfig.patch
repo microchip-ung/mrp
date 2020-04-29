@@ -1,0 +1,37 @@
+From 36770785857564c2a67d55e7a53f95de0ed25607 Mon Sep 17 00:00:00 2001
+From: Horatiu Vultur <horatiu.vultur@microchip.com>
+Date: Sat, 25 Apr 2020 11:29:44 +0200
+Subject: [PATCH net-next v4 02/11] bridge: mrp: Update Kconfig
+
+Add the option BRIDGE_MRP to allow to build in or not MRP support.
+The default value is N.
+
+Reviewed-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: Horatiu Vultur <horatiu.vultur@microchip.com>
+---
+ net/bridge/Kconfig | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/net/bridge/Kconfig b/net/bridge/Kconfig
+index e4fb050e2078..51a6414145d2 100644
+--- a/net/bridge/Kconfig
++++ b/net/bridge/Kconfig
+@@ -61,3 +61,15 @@ config BRIDGE_VLAN_FILTERING
+ 	  Say N to exclude this support and reduce the binary size.
+ 
+ 	  If unsure, say Y.
++
++config BRIDGE_MRP
++	bool "MRP protocol"
++	depends on BRIDGE
++	default n
++	help
++	  If you say Y here, then the Ethernet bridge will be able to run MRP
++	  protocol to detect loops
++
++	  Say N to exclude this support and reduce the binary size.
++
++	  If unsure, say N.
+-- 
+2.17.1
+

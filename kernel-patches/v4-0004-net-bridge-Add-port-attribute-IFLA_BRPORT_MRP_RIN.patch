@@ -1,0 +1,68 @@
+From 5debd6b077f0bd42819e65f36787c14d560412df Mon Sep 17 00:00:00 2001
+From: Horatiu Vultur <horatiu.vultur@microchip.com>
+Date: Sat, 25 Apr 2020 11:29:54 +0200
+Subject: [PATCH net-next v4 04/11] net: bridge: Add port attribute
+ IFLA_BRPORT_MRP_RING_OPEN
+
+This patch adds a new port attribute, IFLA_BRPORT_MRP_RING_OPEN, which allows
+to notify the userspace when the port lost the continuite of MRP frames.
+
+This attribute is set by kernel whenever the SW or HW detects that the ring is
+being open or closed.
+
+Reviewed-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: Horatiu Vultur <horatiu.vultur@microchip.com>
+---
+ include/uapi/linux/if_link.h       | 1 +
+ net/bridge/br_netlink.c            | 3 +++
+ tools/include/uapi/linux/if_link.h | 1 +
+ 3 files changed, 5 insertions(+)
+
+diff --git a/include/uapi/linux/if_link.h b/include/uapi/linux/if_link.h
+index 61e0801c82df..4a295deb933b 100644
+--- a/include/uapi/linux/if_link.h
++++ b/include/uapi/linux/if_link.h
+@@ -343,6 +343,7 @@ enum {
+ 	IFLA_BRPORT_NEIGH_SUPPRESS,
+ 	IFLA_BRPORT_ISOLATED,
+ 	IFLA_BRPORT_BACKUP_PORT,
++	IFLA_BRPORT_MRP_RING_OPEN,
+ 	__IFLA_BRPORT_MAX
+ };
+ #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
+diff --git a/net/bridge/br_netlink.c b/net/bridge/br_netlink.c
+index 43dab4066f91..4084f1ef8641 100644
+--- a/net/bridge/br_netlink.c
++++ b/net/bridge/br_netlink.c
+@@ -151,6 +151,7 @@ static inline size_t br_port_info_size(void)
+ 		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_MULTICAST_ROUTER */
+ #endif
+ 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_GROUP_FWD_MASK */
++		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_MRP_RING_OPEN */
+ 		+ 0;
+ }
+ 
+@@ -213,6 +214,8 @@ static int br_port_fill_attrs(struct sk_buff *skb,
+ 	    nla_put_u16(skb, IFLA_BRPORT_GROUP_FWD_MASK, p->group_fwd_mask) ||
+ 	    nla_put_u8(skb, IFLA_BRPORT_NEIGH_SUPPRESS,
+ 		       !!(p->flags & BR_NEIGH_SUPPRESS)) ||
++	    nla_put_u8(skb, IFLA_BRPORT_MRP_RING_OPEN, !!(p->flags &
++							  BR_MRP_LOST_CONT)) ||
+ 	    nla_put_u8(skb, IFLA_BRPORT_ISOLATED, !!(p->flags & BR_ISOLATED)))
+ 		return -EMSGSIZE;
+ 
+diff --git a/tools/include/uapi/linux/if_link.h b/tools/include/uapi/linux/if_link.h
+index 024af2d1d0af..70dae9ba16f4 100644
+--- a/tools/include/uapi/linux/if_link.h
++++ b/tools/include/uapi/linux/if_link.h
+@@ -343,6 +343,7 @@ enum {
+ 	IFLA_BRPORT_NEIGH_SUPPRESS,
+ 	IFLA_BRPORT_ISOLATED,
+ 	IFLA_BRPORT_BACKUP_PORT,
++	IFLA_BRPORT_MRP_RING_OPEN,
+ 	__IFLA_BRPORT_MAX
+ };
+ #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
+-- 
+2.17.1
+

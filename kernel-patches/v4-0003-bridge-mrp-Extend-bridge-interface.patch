@@ -1,0 +1,53 @@
+From 62badcdc262dfd164d226243591d6dec7ba3fe7e Mon Sep 17 00:00:00 2001
+From: Horatiu Vultur <horatiu.vultur@microchip.com>
+Date: Sat, 25 Apr 2020 11:29:51 +0200
+Subject: [PATCH net-next v4 03/11] bridge: mrp: Extend bridge interface
+
+To integrate MRP into the bridge, first the bridge needs to be aware of ports
+that are part of an MRP ring and which rings are on the bridge.
+Therefore extend bridge interface with the following:
+- add new flag(BR_MPP_AWARE) to the net bridge ports, this bit will be
+  set when the port is added to an MRP instance. In this way it knows if
+  the frame was received on MRP ring port
+- add new flag(BR_MRP_LOST_CONT) to the net bridge ports, this bit will be set
+  when the port lost the continuity of MRP Test frames.
+- add a list of MRP instances
+
+Reviewed-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: Horatiu Vultur <horatiu.vultur@microchip.com>
+---
+ include/linux/if_bridge.h | 2 ++
+ net/bridge/br_private.h   | 4 ++++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/include/linux/if_bridge.h b/include/linux/if_bridge.h
+index 9e57c4411734..b3a8d3054af0 100644
+--- a/include/linux/if_bridge.h
++++ b/include/linux/if_bridge.h
+@@ -47,6 +47,8 @@ struct br_ip_list {
+ #define BR_BCAST_FLOOD		BIT(14)
+ #define BR_NEIGH_SUPPRESS	BIT(15)
+ #define BR_ISOLATED		BIT(16)
++#define BR_MRP_AWARE		BIT(17)
++#define BR_MRP_LOST_CONT	BIT(18)
+ 
+ #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
+ 
+diff --git a/net/bridge/br_private.h b/net/bridge/br_private.h
+index 1f97703a52ff..835a70f8d3ea 100644
+--- a/net/bridge/br_private.h
++++ b/net/bridge/br_private.h
+@@ -428,6 +428,10 @@ struct net_bridge {
+ 	int offload_fwd_mark;
+ #endif
+ 	struct hlist_head		fdb_list;
++
++#if IS_ENABLED(CONFIG_BRIDGE_MRP)
++	struct list_head		__rcu mrp_list;
++#endif
+ };
+ 
+ struct br_input_skb_cb {
+-- 
+2.17.1
+

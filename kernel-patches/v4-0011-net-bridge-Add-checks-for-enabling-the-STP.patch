@@ -1,0 +1,131 @@
+From 378c3a816d67cff6983766162ee27f55a7ccf988 Mon Sep 17 00:00:00 2001
+From: Horatiu Vultur <horatiu.vultur@microchip.com>
+Date: Sat, 25 Apr 2020 11:30:20 +0200
+Subject: [PATCH net-next v4 11/11] net: bridge: Add checks for enabling the
+ STP.
+
+It is not possible to have the MRP and STP running at the same time on the
+bridge, therefore add check when enabling the STP to check if MRP is already
+enabled. In that case return error.
+
+Reviewed-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: Horatiu Vultur <horatiu.vultur@microchip.com>
+---
+ net/bridge/br_ioctl.c    |  3 +--
+ net/bridge/br_netlink.c  |  4 +++-
+ net/bridge/br_private.h  |  3 ++-
+ net/bridge/br_stp.c      |  6 ++++++
+ net/bridge/br_stp_if.c   | 11 ++++++++++-
+ net/bridge/br_sysfs_br.c |  4 +---
+ 6 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/net/bridge/br_ioctl.c b/net/bridge/br_ioctl.c
+index ae22d784b88a..5e71fc8b826f 100644
+--- a/net/bridge/br_ioctl.c
++++ b/net/bridge/br_ioctl.c
+@@ -242,8 +242,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+ 		if (!ns_capable(dev_net(dev)->user_ns, CAP_NET_ADMIN))
+ 			return -EPERM;
+ 
+-		br_stp_set_enabled(br, args[1]);
+-		ret = 0;
++		ret = br_stp_set_enabled(br, args[1], NULL);
+ 		break;
+ 
+ 	case BRCTL_SET_BRIDGE_PRIORITY:
+diff --git a/net/bridge/br_netlink.c b/net/bridge/br_netlink.c
+index 1a5e681a626a..a774e19c41bb 100644
+--- a/net/bridge/br_netlink.c
++++ b/net/bridge/br_netlink.c
+@@ -1109,7 +1109,9 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
+ 	if (data[IFLA_BR_STP_STATE]) {
+ 		u32 stp_enabled = nla_get_u32(data[IFLA_BR_STP_STATE]);
+ 
+-		br_stp_set_enabled(br, stp_enabled);
++		err = br_stp_set_enabled(br, stp_enabled, extack);
++		if (err)
++			return err;
+ 	}
+ 
+ 	if (data[IFLA_BR_PRIORITY]) {
+diff --git a/net/bridge/br_private.h b/net/bridge/br_private.h
+index 5835828320b6..c35647cb138a 100644
+--- a/net/bridge/br_private.h
++++ b/net/bridge/br_private.h
+@@ -1283,7 +1283,8 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time);
+ /* br_stp_if.c */
+ void br_stp_enable_bridge(struct net_bridge *br);
+ void br_stp_disable_bridge(struct net_bridge *br);
+-void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
++int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
++		       struct netlink_ext_ack *extack);
+ void br_stp_enable_port(struct net_bridge_port *p);
+ void br_stp_disable_port(struct net_bridge_port *p);
+ bool br_stp_recalculate_bridge_id(struct net_bridge *br);
+diff --git a/net/bridge/br_stp.c b/net/bridge/br_stp.c
+index 1f14b8455345..3e88be7aa269 100644
+--- a/net/bridge/br_stp.c
++++ b/net/bridge/br_stp.c
+@@ -36,6 +36,12 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
+ 	};
+ 	int err;
+ 
++	/* Don't change the state of the ports if they are driven by a different
++	 * protocol.
++	 */
++	if (p->flags & BR_MRP_AWARE)
++		return;
++
+ 	p->state = state;
+ 	err = switchdev_port_attr_set(p->dev, &attr);
+ 	if (err && err != -EOPNOTSUPP)
+diff --git a/net/bridge/br_stp_if.c b/net/bridge/br_stp_if.c
+index d174d3a566aa..a42850b7eb9a 100644
+--- a/net/bridge/br_stp_if.c
++++ b/net/bridge/br_stp_if.c
+@@ -196,10 +196,17 @@ static void br_stp_stop(struct net_bridge *br)
+ 	br->stp_enabled = BR_NO_STP;
+ }
+ 
+-void br_stp_set_enabled(struct net_bridge *br, unsigned long val)
++int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
++		       struct netlink_ext_ack *extack)
+ {
+ 	ASSERT_RTNL();
+ 
++	if (br_mrp_enabled(br)) {
++		NL_SET_ERR_MSG_MOD(extack,
++				   "STP can't be enabled if MRP is already enabled\n");
++		return -EINVAL;
++	}
++
+ 	if (val) {
+ 		if (br->stp_enabled == BR_NO_STP)
+ 			br_stp_start(br);
+@@ -207,6 +214,8 @@ void br_stp_set_enabled(struct net_bridge *br, unsigned long val)
+ 		if (br->stp_enabled != BR_NO_STP)
+ 			br_stp_stop(br);
+ 	}
++
++	return 0;
+ }
+ 
+ /* called under bridge lock */
+diff --git a/net/bridge/br_sysfs_br.c b/net/bridge/br_sysfs_br.c
+index 9ab0f00b1081..7db06e3f642a 100644
+--- a/net/bridge/br_sysfs_br.c
++++ b/net/bridge/br_sysfs_br.c
+@@ -126,9 +126,7 @@ static ssize_t stp_state_show(struct device *d,
+ 
+ static int set_stp_state(struct net_bridge *br, unsigned long val)
+ {
+-	br_stp_set_enabled(br, val);
+-
+-	return 0;
++	return br_stp_set_enabled(br, val, NULL);
+ }
+ 
+ static ssize_t stp_state_store(struct device *d,
+-- 
+2.17.1
+
