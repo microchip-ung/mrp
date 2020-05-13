@@ -1115,11 +1115,6 @@ static void mrp_port_uninit(struct mrp_port *port)
 
 	pthread_mutex_lock(&mrp->lock);
 
-	if (port->role == BR_MRP_PORT_ROLE_PRIMARY)
-		mrp->p_port = NULL;
-	if (port->role == BR_MRP_PORT_ROLE_SECONDARY)
-		mrp->s_port = NULL;
-
 	port->mrp = NULL;
 
 	free(port);
