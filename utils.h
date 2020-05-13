@@ -144,7 +144,7 @@ struct getmrp_OUT
 };
 #define getmrp_COPY_IN ({ (void)0; })
 #define getmrp_COPY_OUT ({ *count = out->count;                  \
-    memcpy(status, out->status, sizeof(out->status) * (*count)); })
+    memcpy(status, out->status, sizeof(struct mrp_status) * (*count)); })
 #define getmrp_CALL (&out->count, out->status)
 CTL_DECLARE(getmrp);
 
