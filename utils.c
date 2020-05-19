@@ -78,6 +78,7 @@ struct frame_buf *fb_alloc(uint32_t size)
 		free(fb);
 		return NULL;
 	}
+	memset(fb->start, 0x0, size);
 
 	fb->data = fb->start;
 	fb->size = 0;
@@ -103,10 +104,21 @@ void ether_addr_copy(uint8_t *dst, const uint8_t *src)
 
 bool ether_addr_equal(const uint8_t *addr1, const uint8_t *addr2)
 {
-	const uint8_t *a = (const uint8_t *)addr1;
-	const uint8_t *b = (const uint8_t *)addr2;
+	const uint16_t *a = (const uint16_t *)addr1;
+	const uint16_t *b = (const uint16_t *)addr2;
 
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) == 0;
+}
+
+uint64_t ether_addr_to_u64(const uint8_t *addr)
+{
+	uint64_t u = 0;
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		u = u << 8 | addr[i];
+
+	return u;
 }
 
 uint32_t get_ms(void)

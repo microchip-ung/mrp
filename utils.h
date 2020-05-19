@@ -52,6 +52,7 @@ struct frame_buf *fb_alloc(uint32_t size);
 void *fb_put(struct frame_buf *fb, uint32_t size);
 void ether_addr_copy(uint8_t *dst, const uint8_t *src);
 bool ether_addr_equal(const uint8_t *addr1, const uint8_t *addr2);
+uint64_t ether_addr_to_u64(const uint8_t *addr);
 uint32_t get_ms(void);
 
 int if_init(void);
