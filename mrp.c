@@ -198,9 +198,11 @@ static int client_send_message(int cmd, void *inbuf, int lin, void *outbuf,
 static int cmd_addmrp(int argc, char *const *argv)
 {
 	int br, pport, sport, ring_nr, ring_role;
+	uint16_t prio;
 
 	/* skip the command */
 	argv++;
+	argc -= 2;
 
 	br = if_nametoindex(argv[0]);
 	if (!br)
@@ -225,7 +227,12 @@ static int cmd_addmrp(int argc, char *const *argv)
 	if (!ring_role)
 		return -1;
 
-	return CTL_addmrp(br, ring_nr, pport, sport, ring_role);
+	if (argc >= 5)
+		prio = atoi(argv[5]);
+	else
+		prio = MRP_DEFAULT_PRIO;
+
+	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -264,6 +271,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("pport: %s ", if_indextoname(status[i].pport, ifname));
 		printf("sport: %s ", if_indextoname(status[i].sport, ifname));
 		printf("ring_role: %s ", ring_role_str(status[i].ring_role));
+		printf("prio: %d ", status[i].prio);
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRM)
 			printf("ring_state: %s \n", mrm_state_str(status[i].ring_state));
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRC)
@@ -286,8 +294,8 @@ struct command
 static const struct command commands[] =
 {
 	/* Add/delete bridges */
-	{5, 0, "addmrp", cmd_addmrp,
-	 "<bridge> <ring_nr> <pport> <sport> <role>", "Create MRP instance"},
+	{5, 1, "addmrp", cmd_addmrp,
+	 "<bridge> <ring_nr> <pport> <sport> <role> <prio>", "Create MRP instance"},
 	{2, 0, "delmrp", cmd_delmrp,
 	 "<bridge> <ring_nr>", "Create MRP instance"},
 	{0, 0, "getmrp", cmd_getmrp, "", "Show MRP instances"},
@@ -317,8 +325,7 @@ static const struct command *command_lookup(const char *cmd)
 {
 	int i;
 
-	for(i = 0; i < COUNT_OF(commands); ++i)
-	{
+	for(i = 0; i < COUNT_OF(commands); ++i) {
 		if(!strcmp(cmd, commands[i].name))
 			return &commands[i];
 	}

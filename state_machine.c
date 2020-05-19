@@ -119,7 +119,7 @@ static int mrp_set_mrm_role(struct mrp *mrp)
 	if (!mrp->p_port || !mrp->s_port)
 		return -EINVAL;
 
-	err = mrp_offload_add(mrp, mrp->p_port, mrp->s_port);
+	err = mrp_offload_add(mrp, mrp->p_port, mrp->s_port, mrp->prio);
 	if (err)
 		return err;
 
@@ -152,7 +152,7 @@ static int mrp_set_mrc_role(struct mrp *mrp)
 	if (!mrp->p_port || !mrp->s_port)
 		return -EINVAL;
 
-	err = mrp_offload_add(mrp, mrp->p_port, mrp->s_port);
+	err = mrp_offload_add(mrp, mrp->p_port, mrp->s_port, mrp->prio);
 	if (err)
 		return err;
 
@@ -219,7 +219,7 @@ static struct ethhdr *mrp_eth_alloc(const unsigned char *src,
 }
 
 static void mrp_fb_tlv(struct frame_buf *fb, enum br_mrp_tlv_header_type type,
-			  uint8_t length)
+		       uint8_t length)
 {
 	struct br_mrp_tlv_hdr *hdr;
 
@@ -1217,6 +1217,7 @@ int mrp_get(int *count, struct mrp_status *status)
 		if (mrp->s_port)
 			status[i].sport = mrp->s_port->ifindex;
 		status[i].ring_role = mrp->ring_role;
+		status[i].prio = mrp->prio;
 
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
 			status[i].ring_state = mrp->mrm_state;
@@ -1234,7 +1235,7 @@ int mrp_get(int *count, struct mrp_status *status)
 }
 
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
-	       uint32_t sport, uint32_t ring_role)
+	    uint32_t sport, uint32_t ring_role, uint16_t prio)
 {
 	struct mrp *mrp;
 	int err;
@@ -1254,6 +1255,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	pthread_mutex_lock(&mrp->lock);
 
 	mrp->ifindex = br_ifindex;
+	mrp->prio = prio;
 	if_get_mac(mrp->ifindex, mrp->macaddr);
 
 	/* Initialize the ports */

@@ -102,7 +102,7 @@ void mrp_port_open(struct mrp_port *p, bool loc);
 
 int mrp_get(int *count, struct mrp_status *status);
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
-	    uint32_t sport, uint32_t ring_role);
+	    uint32_t sport, uint32_t ring_role, uint16_t prio);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);
 void mrp_uninit(void);
 
@@ -134,7 +134,8 @@ void mrp_ring_link_down_start(struct mrp *mrp, uint32_t interval);
 void mrp_ring_link_down_stop(struct mrp *mrp);
 
 /* mrp_offload.c */
-int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s);
+int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
+		    uint16_t prio);
 int mrp_offload_del(struct mrp *mrp);
 int mrp_port_offload_set_state(struct mrp_port *p,
 			       enum br_mrp_port_state_type state);

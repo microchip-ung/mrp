@@ -93,7 +93,8 @@ void mrp_offload_uninit(void)
 	rtnl_close(&rth);
 }
 
-int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s)
+int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
+		    uint16_t prio)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
 	struct request req = { 0 };
@@ -107,6 +108,7 @@ int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s)
 		  p->ifindex);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_INSTANCE_S_IFINDEX,
 		  s->ifindex);
+	addattr16(&req.n, sizeof(req), IFLA_BRIDGE_MRP_INSTANCE_PRIO, prio);
 
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }

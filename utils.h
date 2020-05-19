@@ -84,13 +84,14 @@ struct mrp_status {
 	int sport;
 	int ring_role;
 	int ring_state;
+	int prio;
 };
 
 #define CTL_DECLARE(name) \
 int CTL_ ## name name ## _ARGS
 
 #define CMD_CODE_addmrp    101
-#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role)
+#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, uint16_t prio)
 struct addmrp_IN
 {
 	int br;
@@ -98,6 +99,7 @@ struct addmrp_IN
 	int sport;
 	int ring_nr;
 	int ring_role;
+	int prio;
 };
 struct addmrp_OUT
 {
@@ -109,9 +111,10 @@ struct addmrp_OUT
      in->sport = sport;                                          \
      in->ring_nr = ring_nr;                                      \
      in->ring_role = ring_role;                                  \
+     in->prio = prio;                                            \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
-#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role)
+#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102

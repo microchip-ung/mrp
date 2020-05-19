@@ -17,7 +17,8 @@ enum
 	IF_OPER_UP,
 };
 
-int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role);
+int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
+	       uint16_t prio);
 int CTL_delmrp(int br_index, int ring_nr);
 int CTL_getmrp(int *count, struct mrp_status *status);
 

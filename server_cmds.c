@@ -25,9 +25,10 @@
 static struct rtnl_handle rth;
 static ev_io netlink_watcher;
 
-int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role)
+int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
+	       uint16_t prio)
 {
-	return mrp_add(br_index, ring_nr, pport, sport, ring_role);
+	return mrp_add(br_index, ring_nr, pport, sport, ring_role, prio);
 }
 
 int CTL_delmrp(int br_index, int ring_nr)
