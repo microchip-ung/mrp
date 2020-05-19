@@ -190,6 +190,9 @@ int mrp_offload_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role)
 	mrp_nl_bridge_prepare(mrp, RTM_SETLINK, &req, &afspec, &afmrp,
 			      &af_submrp, IFLA_BRIDGE_MRP_RING_ROLE);
 
+	if (mrp->mra_support)
+		role = BR_MRP_RING_ROLE_MRA;
+
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_RING_ROLE_RING_ID,
 		  mrp->ring_nr);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_RING_ROLE_ROLE,
@@ -215,6 +218,8 @@ int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 		  max);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_TEST_PERIOD,
 		  period);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_TEST_MONITOR,
+		  mrp->test_monitor);
 
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }

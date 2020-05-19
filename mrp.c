@@ -19,7 +19,8 @@ static int valid_ring_role(char *arg)
 {
 	if (strcmp(arg, "disabled") == 0 ||
 	    strcmp(arg, "mrc") == 0 ||
-	    strcmp(arg, "mrm") == 0)
+	    strcmp(arg, "mrm") == 0 ||
+	    strcmp(arg, "mra") == 0)
 		return 1;
 	return 0;
 }
@@ -32,6 +33,8 @@ static enum br_mrp_ring_role_type ring_role_int(char *arg)
 		return BR_MRP_RING_ROLE_MRC;
 	if (strcmp(arg, "mrm") == 0)
 		return BR_MRP_RING_ROLE_MRM;
+	if (strcmp(arg, "mra") == 0)
+		return BR_MRP_RING_ROLE_MRA;
 	return BR_MRP_RING_ROLE_DISABLED;
 }
 
@@ -41,6 +44,7 @@ static char *ring_role_str(int ring_role)
 	case BR_MRP_RING_ROLE_DISABLED: return "Disabled";
 	case BR_MRP_RING_ROLE_MRC: return "MRC";
 	case BR_MRP_RING_ROLE_MRM: return "MRM";
+	case BR_MRP_RING_ROLE_MRA: return "MRA";
 	default:
 		return "Unknown ring role";
 	}
@@ -270,6 +274,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("ring_nr: %d ", status[i].ring_nr);
 		printf("pport: %s ", if_indextoname(status[i].pport, ifname));
 		printf("sport: %s ", if_indextoname(status[i].sport, ifname));
+		printf("mra_support: %d ", status[i].mra_support);
 		printf("ring_role: %s ", ring_role_str(status[i].ring_role));
 		printf("prio: %d ", status[i].prio);
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRM)

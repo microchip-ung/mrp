@@ -14,6 +14,7 @@
 
 static LIST_HEAD(mrp_instances);
 
+static const uint8_t mrp_test_dmac[ETH_ALEN] = { 0x1, 0x15, 0x4e, 0x0, 0x0, 0x1 };
 static const uint8_t mrp_control_dmac[ETH_ALEN] = { 0x1, 0x15, 0x4e, 0x0, 0x0, 0x2 };
 
 struct mrp_port *mrp_get_port(uint32_t ifindex)
@@ -80,14 +81,14 @@ static char *mrp_get_mrc_state(enum mrp_mrc_state_type state)
 	}
 }
 
-static void mrp_set_mrm_init(struct mrp *mrp)
+void mrp_set_mrm_init(struct mrp *mrp)
 {
 	mrp->add_test = false;
 	mrp->no_tc = false;
 	mrp->ring_test_curr = 0;
 }
 
-static void mrp_set_mrc_init(struct mrp *mrp)
+void mrp_set_mrc_init(struct mrp *mrp)
 {
 	mrp->ring_link_curr_max = mrp->ring_link_conf_max;
 	mrp->ring_test_curr = 0;
@@ -107,6 +108,42 @@ void mrp_set_mrc_state(struct mrp *mrp, enum mrp_mrc_state_type state)
 {
 	printf("mrc_state: %s\n", mrp_get_mrc_state(state));
 	mrp->mrc_state = state;
+}
+
+static int mrp_set_mra_role(struct mrp *mrp)
+{
+	int err;
+
+	/* If MRP instance doesn't have set both ports, then it can't have a
+	 * role
+	 */
+	if (!mrp->p_port || !mrp->s_port)
+		return -EINVAL;
+
+	mrp->mra_support = true;
+
+	err = mrp_offload_add(mrp, mrp->p_port, mrp->s_port, mrp->prio);
+	if (err)
+		return err;
+
+	/* When changing the role everything is reset */
+	mrp_reset_ring_state(mrp);
+	mrp_set_mrm_init(mrp);
+	mrp_set_mrc_init(mrp);
+
+	mrp_set_mrm_state(mrp, MRP_MRM_STATE_AC_STAT1);
+
+	mrp_port_offload_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
+	mrp_port_offload_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
+	mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+
+	if (mrp_is_port_up(mrp->p_port))
+		mrp_port_link_change(mrp->p_port, true);
+
+	if (mrp_is_port_up(mrp->s_port))
+		mrp_port_link_change(mrp->s_port, true);
+
+	return 0;
 }
 
 static int mrp_set_mrm_role(struct mrp *mrp)
@@ -222,6 +259,16 @@ static void mrp_fb_tlv(struct frame_buf *fb, enum br_mrp_tlv_header_type type,
 		       uint8_t length)
 {
 	struct br_mrp_tlv_hdr *hdr;
+
+	hdr = fb_put(fb, sizeof(*hdr));
+	hdr->type = type;
+	hdr->length = length;
+}
+
+static void mrp_fb_sub_tlv(struct frame_buf *fb,
+			   enum br_mrp_sub_tlv_header_type type, uint8_t length)
+{
+	struct br_mrp_sub_tlv_hdr *hdr;
 
 	hdr = fb_put(fb, sizeof(*hdr));
 	hdr->type = type;
@@ -370,16 +417,118 @@ void mrp_ring_link_req(struct mrp_port *p, bool up, uint32_t interval)
 	mrp_send_ring_link(p, up, interval);
 }
 
-/* Returns the MRP_TLVHeader */
-static enum br_mrp_tlv_header_type mrp_get_tlv_hdr(unsigned char *buf)
+static void mrp_send_test_mgr_nack(struct mrp_port *p, uint8_t sa[ETH_ALEN])
 {
-	struct br_mrp_tlv_hdr *hdr;
+	struct br_mrp_test_mgr_nack_hdr *nack_hdr = NULL;
+	struct br_mrp_sub_opt_hdr *sub_opt_hdr = NULL;
+	struct br_mrp_oui_hdr *oui_hdr = NULL;
+	struct frame_buf *fb = NULL;
+	struct mrp *mrp = p->mrp;
+	struct ethhdr *h = NULL;
 
-	/* First 2 bytes in each MRP frame is the version and after that
-	 * is the tlv header, therefor skip the version
-	 */
-	hdr = (struct br_mrp_tlv_hdr *)(buf + sizeof(uint16_t));
-	return hdr->type;
+	fb = mrp_fb_alloc();
+	if (!fb)
+		return;
+
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_OPTION,
+		   sizeof(struct br_mrp_oui_hdr) +
+		   sizeof(struct br_mrp_sub_opt_hdr) +
+		   sizeof(struct br_mrp_sub_tlv_hdr));
+
+	oui_hdr = fb_put(fb, sizeof(*oui_hdr));
+	memset(oui_hdr->oui, 0x0, MRP_OUI_LENGTH);
+
+	sub_opt_hdr = fb_put(fb, sizeof(*sub_opt_hdr));
+	sub_opt_hdr->type = 0x0;
+	memset(sub_opt_hdr->manufacture_data, 0x0, MRP_MANUFACTURE_DATA_LENGTH);
+
+	/* The number 2 is for padding */
+	mrp_fb_sub_tlv(fb, BR_MRP_SUB_TLV_HEADER_TEST_MGR_NACK,
+		       sizeof(*nack_hdr) + 2);
+	nack_hdr = fb_put(fb, sizeof(*nack_hdr));
+
+	nack_hdr->prio = __cpu_to_be16(mrp->prio);
+	ether_addr_copy(nack_hdr->sa, mrp->macaddr);
+	nack_hdr->other_prio = 0;
+	ether_addr_copy(nack_hdr->other_sa, sa);
+
+	fb_put(fb, 2);
+
+	mrp_fb_common(fb, p);
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_END, 0x0);
+
+	h = mrp_eth_alloc(p->macaddr, mrp_test_dmac);
+	if (!h)
+		goto out;
+
+	mrp_send(p, h, fb);
+
+	free(h);
+out:
+	free(fb->start);
+	free(fb);
+}
+
+static void mrp_test_mgr_nack_req(struct mrp *mrp, uint8_t sa[ETH_ALEN])
+{
+	mrp_send_test_mgr_nack(mrp->p_port, sa);
+	mrp_send_test_mgr_nack(mrp->s_port, sa);
+}
+
+static void mrp_send_test_prop(struct mrp_port *p)
+{
+	struct br_mrp_sub_opt_hdr *sub_opt_hdr = NULL;
+	struct br_mrp_test_prop_hdr *prop_hdr = NULL;
+	struct br_mrp_oui_hdr *oui_hdr = NULL;
+	struct frame_buf *fb = NULL;
+	struct mrp *mrp = p->mrp;
+	struct ethhdr *h = NULL;
+
+	fb = mrp_fb_alloc();
+	if (!fb)
+		return;
+
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_OPTION,
+		   sizeof(struct br_mrp_oui_hdr) +
+		   sizeof(struct br_mrp_sub_opt_hdr) +
+		   sizeof(struct br_mrp_sub_tlv_hdr));
+
+	oui_hdr = fb_put(fb, sizeof(*oui_hdr));
+	memset(oui_hdr->oui, 0x0, MRP_OUI_LENGTH);
+
+	sub_opt_hdr = fb_put(fb, sizeof(*sub_opt_hdr));
+	sub_opt_hdr->type = 0x0;
+	memset(sub_opt_hdr->manufacture_data, 0x0, MRP_MANUFACTURE_DATA_LENGTH);
+
+	/* The number 2 is for padding */
+	mrp_fb_sub_tlv(fb, BR_MRP_SUB_TLV_HEADER_TEST_PROPAGATE,
+		       sizeof(*prop_hdr) + 2);
+	prop_hdr = fb_put(fb, sizeof(*prop_hdr));
+
+	prop_hdr->prio = __cpu_to_be16(mrp->prio);
+	ether_addr_copy(prop_hdr->sa, mrp->macaddr);
+	prop_hdr->other_prio = __cpu_to_be16(mrp->prio);
+	ether_addr_copy(prop_hdr->other_sa, mrp->ring_mac);
+
+	mrp_fb_common(fb, p);
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_END, 0x0);
+
+	h = mrp_eth_alloc(p->macaddr, mrp_test_dmac);
+	if (!h)
+		goto out;
+
+	mrp_send(p, h, fb);
+
+	free(h);
+out:
+	free(fb->start);
+	free(fb);
+}
+
+static void mrp_test_prop_req(struct mrp *mrp)
+{
+	mrp_send_test_prop(mrp->p_port);
+	mrp_send_test_prop(mrp->s_port);
 }
 
 /* Represents the state machine for when a MRP_Test frame was received on one
@@ -427,6 +576,40 @@ static void mrp_mrm_recv_ring_test(struct mrp *mrp)
 	}
 }
 
+static bool mrp_better_than_own(struct mrp *mrp,
+				struct br_mrp_ring_test_hdr *hdr)
+{
+	uint16_t prio = __be16_to_cpu(hdr->prio);
+
+	if (prio < mrp->prio ||
+	    (prio == mrp->prio &&
+	    ether_addr_to_u64(hdr->sa) < ether_addr_to_u64(mrp->macaddr)))
+		return true;
+
+	return false;
+}
+
+static void mrp_mra_recv_ring_test(struct mrp *mrp,
+				   struct br_mrp_ring_test_hdr *hdr)
+{
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRM) {
+		if (!mrp_better_than_own(mrp, hdr))
+			mrp_test_mgr_nack_req(mrp, hdr->sa);
+
+		return;
+	}
+
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRC) {
+		if (ether_addr_equal(hdr->sa, mrp->ring_mac))
+			return;
+
+		if (mrp_better_than_own(mrp, hdr))
+			mrp->ring_test_curr = 0;
+
+		mrp->ring_prio = hdr->prio;
+	}
+}
+
 static void mrp_recv_ring_test(struct mrp_port *p, unsigned char *buf)
 {
 	struct br_mrp_ring_test_hdr *hdr;
@@ -439,8 +622,13 @@ static void mrp_recv_ring_test(struct mrp_port *p, unsigned char *buf)
 	/* If the MRP_Test frames was not send by this instance, then don't
 	 * process it.
 	 */
-	if (!ether_addr_equal(hdr->sa, mrp->macaddr))
+	if (!ether_addr_equal(hdr->sa, mrp->macaddr)) {
+		if (!mrp->mra_support)
+			return;
+
+		mrp_mra_recv_ring_test(mrp, hdr);
 		return;
+	}
 
 	mrp_mrm_recv_ring_test(mrp);
 }
@@ -607,6 +795,122 @@ static void mrp_recv_ring_link(struct mrp_port *p, unsigned char *buf)
 	}
 }
 
+static bool mrp_better_than_host(struct mrp *mrp,
+				 struct br_mrp_test_mgr_nack_hdr *hdr)
+{
+	uint16_t prio = __be16_to_cpu(hdr->prio);
+
+	if (prio < mrp->ring_prio ||
+	    (prio == mrp->ring_prio &&
+	    ether_addr_to_u64(hdr->sa) < ether_addr_to_u64(mrp->ring_mac)))
+		return true;
+
+	return false;
+}
+
+static void mrp_recv_nack(struct mrp_port *p, unsigned char *buf)
+{
+	struct br_mrp_test_mgr_nack_hdr *hdr;
+	struct mrp *mrp;
+
+	buf += sizeof(struct br_mrp_sub_tlv_hdr);
+	mrp = p->mrp;
+
+	hdr = (struct br_mrp_test_mgr_nack_hdr *)buf;
+
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRC)
+		return;
+
+	if (ether_addr_equal(hdr->sa, mrp->macaddr))
+		return;
+
+	if (!ether_addr_equal(hdr->other_sa, mrp->macaddr))
+		return;
+
+	if (mrp_better_than_host(mrp, hdr)) {
+		mrp->ring_prio = __be16_to_cpu(hdr->prio);
+		memcpy(mrp->ring_mac, hdr->sa, ETH_ALEN);
+	}
+
+	if (mrp->mrm_state == MRP_MRM_STATE_CHK_RC)
+		mrp_port_offload_set_state(mrp->s_port,
+					   BR_MRP_PORT_STATE_FORWARDING);
+
+	mrp_ring_topo_stop(mrp);
+	mrp_set_mrc_init(mrp);
+	mrp_test_prop_req(mrp);
+
+	switch (mrp->mrm_state) {
+	case MRP_MRM_STATE_PRM_UP:
+		mrp_set_mrc_state(mrp, MRP_MRC_STATE_DE_IDLE);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRC);
+		break;
+	case MRP_MRM_STATE_CHK_RO:
+		mrp_set_mrc_state(mrp, MRP_MRC_STATE_PT_IDLE);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRC);
+		break;
+	case MRP_MRM_STATE_CHK_RC:
+		mrp_set_mrc_state(mrp, MRP_MRC_STATE_PT_IDLE);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRC);
+		break;
+	default:
+		break;
+	}
+
+	mrp->test_monitor = true;
+	mrp_offload_send_ring_test(mrp, mrp->ring_test_conf_interval,
+				   mrp->ring_test_conf_max,
+				   mrp->ring_test_conf_period);
+}
+
+static void mrp_recv_propagate(struct mrp_port *p, unsigned char *buf)
+{
+	struct br_mrp_test_prop_hdr *hdr;
+	struct mrp *mrp;
+
+	buf += sizeof(struct br_mrp_sub_tlv_hdr);
+	mrp = p->mrp;
+
+	hdr = (struct br_mrp_test_prop_hdr *)buf;
+
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
+		return;
+
+	if (!ether_addr_equal(hdr->sa, mrp->macaddr))
+		return;
+
+	if (hdr->other_prio != hdr->prio)
+		return;
+
+	mrp->ring_prio = __be16_to_cpu(hdr->other_prio);
+	memcpy(mrp->ring_mac, hdr->other_sa, ETH_ALEN);
+}
+
+/* Represents the state machine for when a MRP_Option frame was
+ * received on one of the MRP ports.
+ */
+static void mrp_recv_option(struct mrp_port *p, unsigned char *buf)
+{
+	struct br_mrp_sub_tlv_hdr *sub_tlv;
+	struct mrp *mrp = p->mrp;
+
+	printf("recv opt frame, mrm state: %s\n",
+	       mrp_get_mrm_state(mrp->mrm_state));
+
+	/* remove MRP version to get the tlv */
+	buf += sizeof(uint16_t);
+	/* remove also the tlv_hdr, mrp_oui, and sub_opt */
+	buf += sizeof(struct br_mrp_tlv_hdr) +
+	       sizeof(struct br_mrp_oui_hdr) +
+	       sizeof(struct br_mrp_sub_opt_hdr);
+
+	sub_tlv = (struct br_mrp_sub_tlv_hdr *)buf;
+	if (sub_tlv->type == BR_MRP_SUB_TLV_HEADER_TEST_MGR_NACK)
+		return mrp_recv_nack(p, buf);
+	if (sub_tlv->type == BR_MRP_SUB_TLV_HEADER_TEST_PROPAGATE)
+		return mrp_recv_propagate(p, buf);
+}
+
 /* Check if the MRP frame needs to be dropped */
 static bool mrp_should_drop(const struct mrp_port *p,
 			    enum br_mrp_tlv_header_type type)
@@ -630,7 +934,8 @@ static bool mrp_should_drop(const struct mrp_port *p,
 	    type != BR_MRP_TLV_HEADER_RING_TOPO &&
 	    type != BR_MRP_TLV_HEADER_RING_TEST &&
 	    type != BR_MRP_TLV_HEADER_RING_LINK_UP &&
-	    type != BR_MRP_TLV_HEADER_RING_LINK_DOWN) {
+	    type != BR_MRP_TLV_HEADER_RING_LINK_DOWN &&
+	    type != BR_MRP_TLV_HEADER_OPTION) {
 		return true;
 	}
 
@@ -656,6 +961,9 @@ static bool mrp_should_process(const struct mrp_port *p,
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRC)
 			return true;
 		break;
+	case BR_MRP_TLV_HEADER_OPTION:
+		if (mrp->mra_support)
+			return true;
 	default:
 		break;
 	}
@@ -676,6 +984,9 @@ static void mrp_process(struct mrp_port *p, unsigned char *buf,
 	case BR_MRP_TLV_HEADER_RING_LINK_DOWN:
 	case BR_MRP_TLV_HEADER_RING_LINK_UP:
 		mrp_recv_ring_link(p, buf);
+		break;
+	case BR_MRP_TLV_HEADER_OPTION:
+		mrp_recv_option(p, buf);
 		break;
 	default:
 		printf("Unknown type: %d\n", type);
@@ -707,6 +1018,18 @@ static void mrp_process_frame(struct mrp_port *port, struct frame_buf *fb,
 	}
 
 	pthread_mutex_unlock(&mrp->lock);
+}
+
+/* Returns the MRP_TLVHeader */
+static enum br_mrp_tlv_header_type mrp_get_tlv_hdr(unsigned char *buf)
+{
+	struct br_mrp_tlv_hdr *hdr;
+
+	/* First 2 bytes in each MRP frame is the version and after that
+	 * is the tlv header, therefor skip the version
+	 */
+	hdr = (struct br_mrp_tlv_hdr *)(buf + sizeof(uint16_t));
+	return hdr->type;
 }
 
 /* Receives all MRP frames and add them in a queue to be processed */
@@ -1217,6 +1540,7 @@ int mrp_get(int *count, struct mrp_status *status)
 		if (mrp->s_port)
 			status[i].sport = mrp->s_port->ifindex;
 		status[i].ring_role = mrp->ring_role;
+		status[i].mra_support = mrp->mra_support;
 		status[i].prio = mrp->prio;
 
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
@@ -1275,6 +1599,8 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 		err = mrp_set_mrm_role(mrp);
 	if (ring_role == BR_MRP_RING_ROLE_MRC)
 		err = mrp_set_mrc_role(mrp);
+	if (ring_role == BR_MRP_RING_ROLE_MRA)
+		err = mrp_set_mra_role(mrp);
 
 	pthread_mutex_unlock(&mrp->lock);
 

@@ -49,7 +49,13 @@ struct mrp {
 	struct mrp_port			*p_port;
 	struct mrp_port			*s_port;
 
+	/* mac address of the ring MRM */
+	uint32_t			ring_prio;
+	uint8_t				ring_mac[ETH_ALEN];
+
 	uint32_t			ring_nr;
+	bool				mra_support;
+	bool				test_monitor;
 	enum br_mrp_ring_role_type	ring_role;
 	enum mrp_ring_recovery_type	ring_recv;
 
@@ -105,6 +111,9 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);
 void mrp_uninit(void);
+
+void mrp_set_mrm_init(struct mrp* mrp);
+void mrp_set_mrc_init(struct mrp* mrp);
 
 struct mrp_port *mrp_get_port(uint32_t ifindex);
 struct mrp *mrp_find(uint32_t br_ifindex, uint32_t ring_nr);

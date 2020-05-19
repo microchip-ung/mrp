@@ -6,8 +6,45 @@
 
 #include "state_machine.h"
 
+static bool mrp_mrc_ring_open(struct mrp *mrp)
+{
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
+		return false;
+
+	mrp_set_mrm_init(mrp);
+
+	switch (mrp->mrc_state) {
+	case MRP_MRC_STATE_DE_IDLE:
+		mrp_set_mrm_state(mrp, MRP_MRM_STATE_PRM_UP);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+		break;
+	case MRP_MRC_STATE_PT:
+		mrp_set_mrm_state(mrp, MRP_MRM_STATE_CHK_RC);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+		break;
+	case MRP_MRC_STATE_DE:
+		mrp_set_mrm_state(mrp, MRP_MRM_STATE_PRM_UP);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+		break;
+	case MRP_MRC_STATE_PT_IDLE:
+		mrp_set_mrm_state(mrp, MRP_MRM_STATE_CHK_RO);
+		mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+	default:
+		break;
+	}
+
+	mrp->test_monitor = false;
+	mrp_ring_test_req(mrp, mrp->ring_test_conf_short);
+
+	return true;
+}
+
 void mrp_ring_open(struct mrp *mrp)
 {
+	if (mrp->mra_support)
+		if (mrp_mrc_ring_open(mrp))
+			return;
+
 	if (mrp->mrm_state != MRP_MRM_STATE_CHK_RC) {
 		mrp->add_test = false;
 		mrp_ring_test_req(mrp, mrp->ring_test_conf_interval);

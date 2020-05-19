@@ -82,6 +82,7 @@ struct mrp_status {
 	int ring_nr;
 	int pport;
 	int sport;
+	int mra_support;
 	int ring_role;
 	int ring_state;
 	int prio;
