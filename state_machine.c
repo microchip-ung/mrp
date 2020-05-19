@@ -1155,6 +1155,8 @@ static int mrp_create(uint32_t br_ifindex, uint32_t ring_nr)
 	if (!mrp)
 		return -ENOMEM;
 
+	memset(mrp, 0x0, sizeof(struct mrp));
+
 	pthread_mutex_init(&mrp->lock, NULL);
 
 	mrp->ifindex = br_ifindex;
