@@ -28,7 +28,7 @@ network to clear the FDB.
 
 ## Depedencies
 
-It depens on the following libs Linux 5.8, 'libnl' and 'libev'
+It depens on the following libs Linux 5.8, 'libnl', 'libev' and 'libmnl'
 
 ## Build
 
