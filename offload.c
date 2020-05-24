@@ -92,7 +92,7 @@ int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s)
 	struct rtattr *afspec, *afmrp;
 	struct request req = { 0 };
 
-	mrp_instance.ring_nr = mrp->ring_nr;
+	mrp_instance.ring_id = mrp->ring_nr;
 	mrp_instance.p_ifindex = p->ifindex;
 	mrp_instance.s_ifindex = s->ifindex;
 
@@ -110,7 +110,7 @@ int mrp_offload_del(struct mrp *mrp)
 	struct rtattr *afspec, *afmrp;
 	struct request req = { 0 };
 
-	mrp_instance.ring_nr = mrp->ring_nr;
+	mrp_instance.ring_id = mrp->ring_nr;
 
 	mrp_nl_bridge_prepare(mrp, RTM_DELLINK, &req, &afspec, &afmrp);
 
@@ -144,7 +144,7 @@ int mrp_port_offload_set_role(struct mrp_port *p,
 
 	p->role = role;
 
-	port_role.ring_nr = p->mrp->ring_nr;
+	port_role.ring_id = p->mrp->ring_nr;
 	port_role.role = role;
 
 	mrp_nl_port_prepare(p, RTM_SETLINK, &req, &afspec, &afmrp);
@@ -162,7 +162,7 @@ int mrp_offload_set_ring_state(struct mrp *mrp,
 	struct rtattr *afspec, *afmrp;
 	struct request req = { 0 };
 
-	ring_state.ring_nr = mrp->ring_nr;
+	ring_state.ring_id = mrp->ring_nr;
 	ring_state.ring_state = state;
 
 	mrp_nl_bridge_prepare(mrp, RTM_SETLINK, &req, &afspec, &afmrp);
@@ -181,7 +181,7 @@ int mrp_offload_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role)
 
 	mrp->ring_role = role;
 
-	ring_role.ring_nr = mrp->ring_nr;
+	ring_role.ring_id = mrp->ring_nr;
 	ring_role.ring_role = role;
 
 	mrp_nl_bridge_prepare(mrp, RTM_SETLINK, &req, &afspec, &afmrp);
@@ -201,7 +201,7 @@ int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 
 	mrp_nl_bridge_prepare(mrp, RTM_SETLINK, &req, &afspec, &afmrp);
 
-	start_test.ring_nr = mrp->ring_nr;
+	start_test.ring_id = mrp->ring_nr;
 	start_test.interval = interval;
 	start_test.max_miss = max;
 	start_test.period = period;

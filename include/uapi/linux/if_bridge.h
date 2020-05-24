@@ -11,8 +11,8 @@
  *	2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_IF_BRIDGE_H
-#define _LINUX_IF_BRIDGE_H
+#ifndef _UAPI_LINUX_IF_BRIDGE_H
+#define _UAPI_LINUX_IF_BRIDGE_H
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
@@ -131,6 +131,7 @@ enum {
 #define BRIDGE_VLAN_INFO_RANGE_BEGIN	(1<<3) /* VLAN is start of vlan range */
 #define BRIDGE_VLAN_INFO_RANGE_END	(1<<4) /* VLAN is end of vlan range */
 #define BRIDGE_VLAN_INFO_BRENTRY	(1<<5) /* Global bridge VLAN entry */
+#define BRIDGE_VLAN_INFO_ONLY_OPTS	(1<<6) /* Skip create/delete/flags */
 
 struct bridge_vlan_info {
 	__u16 flags;
@@ -147,6 +148,16 @@ enum {
 
 #define IFLA_BRIDGE_VLAN_TUNNEL_MAX (__IFLA_BRIDGE_VLAN_TUNNEL_MAX - 1)
 
+struct bridge_vlan_xstats {
+	__u64 rx_bytes;
+	__u64 rx_packets;
+	__u64 tx_bytes;
+	__u64 tx_packets;
+	__u16 vid;
+	__u16 flags;
+	__u32 pad2;
+};
+
 enum {
 	IFLA_BRIDGE_MRP_UNSPEC,
 	IFLA_BRIDGE_MRP_INSTANCE,
@@ -159,28 +170,28 @@ enum {
 };
 
 struct br_mrp_instance {
-	__u32 ring_nr;
+	__u32 ring_id;
 	__u32 p_ifindex;
 	__u32 s_ifindex;
 };
 
 struct br_mrp_port_role {
-	__u32 ring_nr;
+	__u32 ring_id;
 	__u32 role;
 };
 
 struct br_mrp_ring_state {
-	__u32 ring_nr;
+	__u32 ring_id;
 	__u32 ring_state;
 };
 
 struct br_mrp_ring_role {
-	__u32 ring_nr;
+	__u32 ring_id;
 	__u32 ring_role;
 };
 
 struct br_mrp_start_test {
-	__u32 ring_nr;
+	__u32 ring_id;
 	__u32 interval;
 	__u32 max_miss;
 	__u32 period;
@@ -188,15 +199,90 @@ struct br_mrp_start_test {
 
 #define IFLA_BRIDGE_MRP_MAX (__IFLA_BRIDGE_MRP_MAX - 1)
 
-struct bridge_vlan_xstats {
-	__u64 rx_bytes;
-	__u64 rx_packets;
-	__u64 tx_bytes;
-	__u64 tx_packets;
-	__u16 vid;
-	__u16 flags;
-	__u32 pad2;
+struct bridge_stp_xstats {
+	__u64 transition_blk;
+	__u64 transition_fwd;
+	__u64 rx_bpdu;
+	__u64 tx_bpdu;
+	__u64 rx_tcn;
+	__u64 tx_tcn;
 };
+
+/* Bridge vlan RTM header */
+struct br_vlan_msg {
+	__u8 family;
+	__u8 reserved1;
+	__u16 reserved2;
+	__u32 ifindex;
+};
+
+enum {
+	BRIDGE_VLANDB_DUMP_UNSPEC,
+	BRIDGE_VLANDB_DUMP_FLAGS,
+	__BRIDGE_VLANDB_DUMP_MAX,
+};
+#define BRIDGE_VLANDB_DUMP_MAX (__BRIDGE_VLANDB_DUMP_MAX - 1)
+
+/* flags used in BRIDGE_VLANDB_DUMP_FLAGS attribute to affect dumps */
+#define BRIDGE_VLANDB_DUMPF_STATS	(1 << 0) /* Include stats in the dump */
+
+/* Bridge vlan RTM attributes
+ * [BRIDGE_VLANDB_ENTRY] = {
+ *     [BRIDGE_VLANDB_ENTRY_INFO]
+ *     ...
+ * }
+ */
+enum {
+	BRIDGE_VLANDB_UNSPEC,
+	BRIDGE_VLANDB_ENTRY,
+	__BRIDGE_VLANDB_MAX,
+};
+#define BRIDGE_VLANDB_MAX (__BRIDGE_VLANDB_MAX - 1)
+
+enum {
+	BRIDGE_VLANDB_ENTRY_UNSPEC,
+	BRIDGE_VLANDB_ENTRY_INFO,
+	BRIDGE_VLANDB_ENTRY_RANGE,
+	BRIDGE_VLANDB_ENTRY_STATE,
+	BRIDGE_VLANDB_ENTRY_TUNNEL_INFO,
+	BRIDGE_VLANDB_ENTRY_STATS,
+	__BRIDGE_VLANDB_ENTRY_MAX,
+};
+#define BRIDGE_VLANDB_ENTRY_MAX (__BRIDGE_VLANDB_ENTRY_MAX - 1)
+
+/* [BRIDGE_VLANDB_ENTRY] = {
+ *     [BRIDGE_VLANDB_ENTRY_TUNNEL_INFO] = {
+ *         [BRIDGE_VLANDB_TINFO_ID]
+ *         ...
+ *     }
+ * }
+ */
+enum {
+	BRIDGE_VLANDB_TINFO_UNSPEC,
+	BRIDGE_VLANDB_TINFO_ID,
+	BRIDGE_VLANDB_TINFO_CMD,
+	__BRIDGE_VLANDB_TINFO_MAX,
+};
+#define BRIDGE_VLANDB_TINFO_MAX (__BRIDGE_VLANDB_TINFO_MAX - 1)
+
+/* [BRIDGE_VLANDB_ENTRY] = {
+ *     [BRIDGE_VLANDB_ENTRY_STATS] = {
+ *         [BRIDGE_VLANDB_STATS_RX_BYTES]
+ *         ...
+ *     }
+ *     ...
+ * }
+ */
+enum {
+	BRIDGE_VLANDB_STATS_UNSPEC,
+	BRIDGE_VLANDB_STATS_RX_BYTES,
+	BRIDGE_VLANDB_STATS_RX_PACKETS,
+	BRIDGE_VLANDB_STATS_TX_BYTES,
+	BRIDGE_VLANDB_STATS_TX_PACKETS,
+	BRIDGE_VLANDB_STATS_PAD,
+	__BRIDGE_VLANDB_STATS_MAX,
+};
+#define BRIDGE_VLANDB_STATS_MAX (__BRIDGE_VLANDB_STATS_MAX - 1)
 
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {
@@ -304,6 +390,7 @@ enum {
 	BRIDGE_XSTATS_VLAN,
 	BRIDGE_XSTATS_MCAST,
 	BRIDGE_XSTATS_PAD,
+	BRIDGE_XSTATS_STP,
 	__BRIDGE_XSTATS_MAX
 };
 #define BRIDGE_XSTATS_MAX (__BRIDGE_XSTATS_MAX - 1)
@@ -356,4 +443,4 @@ struct br_boolopt_multi {
 	__u32 optval;
 	__u32 optmask;
 };
-#endif /* _LINUX_IF_BRIDGE_H */
+#endif /* _UAPI_LINUX_IF_BRIDGE_H */
