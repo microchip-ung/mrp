@@ -1079,14 +1079,6 @@ static int mrp_port_init(uint32_t p_ifindex, struct mrp *mrp,
 {
 	struct mrp_port *port;
 
-	/* When a port is initialized, stop all timers and disable the states.
-	 * The reason is that, it should not be possible to change the ports
-	 * while MRP is running. Therefore after setting a port it is required
-	 * to set again the role(MRM or MRC)
-	 */
-	mrp_reset_ring_state(mrp);
-	mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_DISABLED);
-
 	port = malloc(sizeof(struct mrp_port));
 	if (!port)
 		return -ENOMEM;
@@ -1298,7 +1290,7 @@ delete_port:
 	mrp->p_port = NULL;
 
 delete_mrp:
-	mrp_destroy(br_ifindex, ring_nr, true);
+	mrp_destroy(br_ifindex, ring_nr, false);
 	return err;
 }
 
