@@ -7,11 +7,11 @@ becomes open or closed.
 ## MRP
 
 This is the first proposal of implementing a subset of the standard. It supports
-only 2 roles of an MRP node. It supports only Media Redundancy Manager(MRM) and
-Media Redundancy Client(MRC). In a MRP ring, each node needs to support MRP and
-in a ring can be only one MRM and multiple MRC. It is possible to have multiple
-instances of MRP on a single node. But a port can be part of only one MRP
-instance.
+only 3 roles of an MRP node. It supports Media Redundancy Manager(MRM), Media
+Redundancy Client(MRC) and Media Redundancy Auto-Manager(MRA) In a MRP ring,
+each node needs to support MRP and in a ring can be only one MRM and multiple
+MRC. It is possible to have multiple instances of MRP on a single node. But a
+port can be part of only one MRP instance.
 
 The MRM is responsible for detecting when there is a loop in the ring. It is
 sending the frame MRP_Test to detect the loops. It would send MRP_Test on both
@@ -71,14 +71,14 @@ bridge. The client will communicate with the server and the server will notify
 the kernel via netlink interface.
 
 ```bash
-mrp addmrp br0 1 eth0 eth1 mrm
+mrp addmrp bridge br0 ring_nr 1 pport eth0 sport eth1 ring_role mrm
 ```
 
 It is possible to create multiple MRP instances on a bridge but, a port can't be
 in multiple MRP instances.
 
 ```bash
-mrp addmrp br0 2 eth2 eth3 mrm
+mrp addmrp bridge br0 ring_nr 2 pport eth2 sport eth3 ring_role mrm
 ```
 To see the current status of the MRP instances:
 
@@ -91,13 +91,13 @@ bridge: br0 ring_nr: 2 pport: eth2 sport: eth3 ring_role: MRM ring_state: CHK_RC
 To delete one of the instances is required to pass the bridge and the ring
 instance number:
 ```bash
-mrp delmrp br0 1
+mrp delmrp bridge br0 ring_nr 1
 bridge: br0 ring_nr: 2 pport: eth2 sport: eth3 ring_role: MRM ring_state: CHK_RC
 ```
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to
-deiscuss what you would like to change.
+discuss what you would like to change.
 
 ## License
 [GPLv2](https://choosealicense.com/licenses/gpl-2.0/)

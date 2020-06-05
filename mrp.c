@@ -13,6 +13,14 @@
 #include "linux.h"
 #include <linux/mrp_bridge.h>
 
+static void incomplete_command(void)
+{
+	fprintf(stderr, "Command line is not complete. Try option \"help\"\n");
+	exit(-1);
+}
+
+#define NEXT_ARG() do { argv++; if (--argc <= 0) incomplete_command(); } while(0)
+
 static int fd = 1;
 
 static int valid_ring_role(char *arg)
@@ -201,57 +209,67 @@ static int client_send_message(int cmd, void *inbuf, int lin, void *outbuf,
 
 static int cmd_addmrp(int argc, char *const *argv)
 {
-	int br, pport, sport, ring_nr, ring_role;
-	uint16_t prio;
+	int br = 0, pport = 0, sport = 0, ring_nr = 0, ring_role = 0;
+	uint16_t prio = MRP_DEFAULT_PRIO;
 
 	/* skip the command */
 	argv++;
-	argc -= 2;
+	argc -= 1;
 
-	br = if_nametoindex(argv[0]);
-	if (!br)
+	while (argc > 0) {
+		if (strcmp(*argv, "bridge") == 0) {
+			NEXT_ARG();
+			br = if_nametoindex(*argv);
+		} else if (strcmp(*argv, "ring_nr") == 0) {
+			NEXT_ARG();
+			ring_nr = atoi(*argv);
+		} else if (strcmp(*argv, "pport") == 0) {
+			NEXT_ARG();
+			pport = if_nametoindex(*argv);
+		} else if (strcmp(*argv, "sport") == 0) {
+			NEXT_ARG();
+			sport = if_nametoindex(*argv);
+		} else if (strcmp(*argv, "ring_role") == 0) {
+			NEXT_ARG();
+			if (!valid_ring_role(*argv))
+				return -1;
+			ring_role = ring_role_int(*argv);
+		} else if (strcmp(*argv, "prio") == 0) {
+			NEXT_ARG();
+			prio = atoi(*argv);
+		}
+
+		argc--; argv++;
+	}
+
+	if (br == 0 || pport == 0 || sport == 0 || ring_nr == 0 ||
+	    ring_role == 0)
 		return -1;
-
-	ring_nr = atoi(argv[1]);
-	if (!ring_nr)
-		return -1;
-
-	pport = if_nametoindex(argv[2]);
-	if (!pport)
-		return -1;
-
-	sport = if_nametoindex(argv[3]);
-	if (!sport)
-		return -1;
-
-	if (!valid_ring_role(argv[4]))
-		return -1;
-
-	ring_role = ring_role_int(argv[4]);
-	if (!ring_role)
-		return -1;
-
-	if (argc >= 5)
-		prio = atoi(argv[5]);
-	else
-		prio = MRP_DEFAULT_PRIO;
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
 {
-	int br, ring_nr;
+	int br = 0, ring_nr = 0;
 
 	/* skip the command */
 	argv++;
+	argc -= 1;
 
-	br = if_nametoindex(argv[0]);
-	if (!br)
-		return -1;
+	while (argc > 0) {
+		if (strcmp(*argv, "bridge") == 0) {
+			NEXT_ARG();
+			br = if_nametoindex(*argv);
+		} else if (strcmp(*argv, "ring_nr") == 0) {
+			NEXT_ARG();
+			ring_nr = atoi(*argv);
+		}
 
-	ring_nr = atoi(argv[1]);
-	if (!ring_nr)
+		argc--; argv++;
+	}
+
+	if (br == 0 || ring_nr == 0)
 		return -1;
 
 	return CTL_delmrp(br, ring_nr);
@@ -288,8 +306,6 @@ static int cmd_getmrp(int argc, char *const *argv)
 
 struct command
 {
-	int nargs;
-	int optargs;
 	const char *name;
 	int (*func) (int argc, char *const *argv);
 	const char *format;
@@ -299,11 +315,11 @@ struct command
 static const struct command commands[] =
 {
 	/* Add/delete bridges */
-	{5, 1, "addmrp", cmd_addmrp,
-	 "<bridge> <ring_nr> <pport> <sport> <role> <prio>", "Create MRP instance"},
-	{2, 0, "delmrp", cmd_delmrp,
-	 "<bridge> <ring_nr>", "Create MRP instance"},
-	{0, 0, "getmrp", cmd_getmrp, "", "Show MRP instances"},
+	{"addmrp", cmd_addmrp,
+	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio>]", "Create MRP instance"},
+	{"delmrp", cmd_delmrp,
+	 "bridge <bridge> ring_nr <ring_nr>", "Create MRP instance"},
+	{"getmrp", cmd_getmrp, "", "Show MRP instances"},
 };
 
 static void command_helpall(void)
@@ -353,17 +369,6 @@ static const struct command *command_lookup_and_validate(int argc,
 			help();
 			return NULL;
 		}
-	}
-
-	if (argc < cmd->nargs + 1 || argc > cmd->nargs + cmd->optargs + 1)
-	{
-		if (line_num > 0)
-			fprintf(stderr, "Error on line %d:\n", line_num);
-		fprintf(stderr, "Incorrect number of arguments for command '%s'\n",
-			cmd->name);
-		fprintf(stderr, "Usage: mrp %s %s\n  %s\n",
-			cmd->name, cmd->format, cmd->help);
-		return NULL;
 	}
 
 	return cmd;
