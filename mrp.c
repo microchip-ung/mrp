@@ -58,6 +58,41 @@ static char *ring_role_str(int ring_role)
 	}
 }
 
+static int valid_ring_recv(char *arg)
+{
+	if (strcmp(arg, "500") == 0 ||
+	    strcmp(arg, "200") == 0 ||
+	    strcmp(arg, "30") == 0 ||
+	    strcmp(arg, "10") == 0)
+		return 1;
+	return 0;
+}
+
+static enum mrp_ring_recovery_type ring_recv_int(char *arg)
+{
+	if (strcmp(arg, "500") == 0)
+		return MRP_RING_RECOVERY_500;
+	if (strcmp(arg, "200") == 0)
+		return MRP_RING_RECOVERY_200;
+	if (strcmp(arg, "30") == 0)
+		return MRP_RING_RECOVERY_30;
+	if (strcmp(arg, "10") == 0)
+		return MRP_RING_RECOVERY_10;
+	return MRP_RING_RECOVERY_500;
+}
+
+static char* ring_recv_str(enum mrp_ring_recovery_type ring_recv)
+{
+	switch (ring_recv) {
+	case MRP_RING_RECOVERY_500: return "500";
+	case MRP_RING_RECOVERY_200: return "200";
+	case MRP_RING_RECOVERY_30: return "30";
+	case MRP_RING_RECOVERY_10: return "10";
+	default:
+		return "Unknown ring recovery";
+	}
+}
+
 static char *mrm_state_str(int mrm_state)
 {
 	switch (mrm_state) {
@@ -211,6 +246,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 {
 	int br = 0, pport = 0, sport = 0, ring_nr = 0, ring_role = 0;
 	uint16_t prio = MRP_DEFAULT_PRIO;
+	uint8_t ring_recv = MRP_RING_RECOVERY_500;
 
 	/* skip the command */
 	argv++;
@@ -237,6 +273,11 @@ static int cmd_addmrp(int argc, char *const *argv)
 		} else if (strcmp(*argv, "prio") == 0) {
 			NEXT_ARG();
 			prio = atoi(*argv);
+		} else if (strcmp(*argv, "ring_recv") == 0) {
+			NEXT_ARG();
+			if (!valid_ring_recv(*argv))
+				return -1;
+			ring_recv = ring_recv_int(*argv);
 		}
 
 		argc--; argv++;
@@ -246,7 +287,8 @@ static int cmd_addmrp(int argc, char *const *argv)
 	    ring_role == 0)
 		return -1;
 
-	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio);
+	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
+			  ring_recv);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -295,6 +337,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("mra_support: %d ", status[i].mra_support);
 		printf("ring_role: %s ", ring_role_str(status[i].ring_role));
 		printf("prio: %d ", status[i].prio);
+		printf("ring_recv: %s ", ring_recv_str(status[i].ring_recv));
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRM)
 			printf("ring_state: %s \n", mrm_state_str(status[i].ring_state));
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRC)

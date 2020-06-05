@@ -1322,6 +1322,8 @@ void mrp_mac_change(uint32_t ifindex, unsigned char *mac)
 static void mrp_update_recovery(struct mrp *mrp,
 				enum mrp_ring_recovery_type ring_recv)
 {
+	mrp->ring_recv = ring_recv;
+
 	switch (ring_recv) {
 	case MRP_RING_RECOVERY_500:
 		mrp->ring_topo_conf_interval = 20 * 1000;
@@ -1542,6 +1544,7 @@ int mrp_get(int *count, struct mrp_status *status)
 		status[i].ring_role = mrp->ring_role;
 		status[i].mra_support = mrp->mra_support;
 		status[i].prio = mrp->prio;
+		status[i].ring_recv = mrp->ring_recv;
 
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
 			status[i].ring_state = mrp->mrm_state;
@@ -1559,7 +1562,8 @@ int mrp_get(int *count, struct mrp_status *status)
 }
 
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
-	    uint32_t sport, uint32_t ring_role, uint16_t prio)
+	    uint32_t sport, uint32_t ring_role, uint16_t prio,
+	    uint8_t ring_recv)
 {
 	struct mrp *mrp;
 	int err;
@@ -1580,6 +1584,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 
 	mrp->ifindex = br_ifindex;
 	mrp->prio = prio;
+	mrp_update_recovery(mrp, ring_recv);
 	if_get_mac(mrp->ifindex, mrp->macaddr);
 
 	/* Initialize the ports */

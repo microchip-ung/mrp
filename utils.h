@@ -15,6 +15,13 @@
 
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
+enum mrp_ring_recovery_type {
+	MRP_RING_RECOVERY_500,
+	MRP_RING_RECOVERY_200,
+	MRP_RING_RECOVERY_30,
+	MRP_RING_RECOVERY_10,
+};
+
 enum mrp_mrm_state_type {
 	/* Awaiting Connection State 1 */
 	MRP_MRM_STATE_AC_STAT1 = 0x0,
@@ -86,13 +93,14 @@ struct mrp_status {
 	int ring_role;
 	int ring_state;
 	int prio;
+	int ring_recv;
 };
 
 #define CTL_DECLARE(name) \
 int CTL_ ## name name ## _ARGS
 
 #define CMD_CODE_addmrp    101
-#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, uint16_t prio)
+#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, uint16_t prio, uint8_t ring_recv)
 struct addmrp_IN
 {
 	int br;
@@ -101,6 +109,7 @@ struct addmrp_IN
 	int ring_nr;
 	int ring_role;
 	int prio;
+	int ring_recv;
 };
 struct addmrp_OUT
 {
@@ -113,9 +122,10 @@ struct addmrp_OUT
      in->ring_nr = ring_nr;                                      \
      in->ring_role = ring_role;                                  \
      in->prio = prio;                                            \
+     in->ring_recv = ring_recv;                                  \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
-#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio)
+#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio, in->ring_recv)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102

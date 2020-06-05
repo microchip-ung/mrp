@@ -18,13 +18,6 @@
 #include "linux.h"
 #include "utils.h"
 
-enum mrp_ring_recovery_type {
-	MRP_RING_RECOVERY_500,
-	MRP_RING_RECOVERY_200,
-	MRP_RING_RECOVERY_30,
-	MRP_RING_RECOVERY_10,
-};
-
 struct mrp_port {
 	struct mrp			*mrp;
 	enum br_mrp_port_state_type	state;
@@ -108,7 +101,8 @@ void mrp_port_open(struct mrp_port *p, bool loc);
 
 int mrp_get(int *count, struct mrp_status *status);
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
-	    uint32_t sport, uint32_t ring_role, uint16_t prio);
+	    uint32_t sport, uint32_t ring_role, uint16_t prio,
+	    uint8_t ring_recv);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);
 void mrp_uninit(void);
 

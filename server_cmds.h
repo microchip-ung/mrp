@@ -18,7 +18,7 @@ enum
 };
 
 int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
-	       uint16_t prio);
+	       uint16_t prio, uint8_t ring_recv);
 int CTL_delmrp(int br_index, int ring_nr);
 int CTL_getmrp(int *count, struct mrp_status *status);
 
