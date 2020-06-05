@@ -102,7 +102,7 @@ void mrp_port_open(struct mrp_port *p, bool loc);
 int mrp_get(int *count, struct mrp_status *status);
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio,
-	    uint8_t ring_recv);
+	    uint8_t ring_recv, uint8_t react_on_link_change);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);
 void mrp_uninit(void);
 

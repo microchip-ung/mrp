@@ -247,6 +247,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 	int br = 0, pport = 0, sport = 0, ring_nr = 0, ring_role = 0;
 	uint16_t prio = MRP_DEFAULT_PRIO;
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
+	uint8_t react_on_link_change = 1;
 
 	/* skip the command */
 	argv++;
@@ -278,6 +279,12 @@ static int cmd_addmrp(int argc, char *const *argv)
 			if (!valid_ring_recv(*argv))
 				return -1;
 			ring_recv = ring_recv_int(*argv);
+		} else if (strcmp(*argv, "react_on_link_change") == 0) {
+			NEXT_ARG();
+			if (atoi(*argv))
+				react_on_link_change = 1;
+			else
+				react_on_link_change = 0;
 		}
 
 		argc--; argv++;
@@ -288,7 +295,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 		return -1;
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
-			  ring_recv);
+			  ring_recv, react_on_link_change);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -338,6 +345,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("ring_role: %s ", ring_role_str(status[i].ring_role));
 		printf("prio: %d ", status[i].prio);
 		printf("ring_recv: %s ", ring_recv_str(status[i].ring_recv));
+		printf("react_on_link_change: %d ", status[i].react_on_link_change);
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRM)
 			printf("ring_state: %s \n", mrm_state_str(status[i].ring_state));
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRC)

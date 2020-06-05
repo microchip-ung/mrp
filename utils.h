@@ -94,13 +94,15 @@ struct mrp_status {
 	int ring_state;
 	int prio;
 	int ring_recv;
+	int react_on_link_change;
 };
 
 #define CTL_DECLARE(name) \
 int CTL_ ## name name ## _ARGS
 
 #define CMD_CODE_addmrp    101
-#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, uint16_t prio, uint8_t ring_recv)
+#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, \
+		     uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change)
 struct addmrp_IN
 {
 	int br;
@@ -110,6 +112,7 @@ struct addmrp_IN
 	int ring_role;
 	int prio;
 	int ring_recv;
+	int react_on_link_change;
 };
 struct addmrp_OUT
 {
@@ -123,9 +126,10 @@ struct addmrp_OUT
      in->ring_role = ring_role;                                  \
      in->prio = prio;                                            \
      in->ring_recv = ring_recv;                                  \
+     in->react_on_link_change = react_on_link_change;            \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
-#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio, in->ring_recv)
+#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio, in->ring_recv, in->react_on_link_change)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102
