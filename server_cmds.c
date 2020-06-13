@@ -62,9 +62,6 @@ static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 
 	port = mrp_get_port(ifi->ifi_index);
 
-	if (!port)
-		return 0;
-
 	if (af_family != AF_BRIDGE && af_family != AF_UNSPEC)
 		return 0;
 
@@ -82,6 +79,9 @@ static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 		mrp_mac_change(ifi->ifi_index,
 			       (__u8*)RTA_DATA(tb[IFLA_ADDRESS]));
 	}
+
+	if (!port)
+		return 0;
 
 	if (tb[IFLA_OPERSTATE]) {
 		__u8 state = *(__u8*)RTA_DATA(tb[IFLA_OPERSTATE]);
