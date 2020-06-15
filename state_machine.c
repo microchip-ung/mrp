@@ -659,24 +659,24 @@ static void mrp_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
 		/* Ignore */
 		break;
 	case MRP_MRC_STATE_DE_IDLE:
-		mrp_clear_fdb_start(mrp, ntohs(hdr->interval));
+		mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
 		break;
 	case MRP_MRC_STATE_PT:
 		mrp->ring_link_curr_max = mrp->ring_link_conf_max;
 		mrp_ring_link_up_stop(mrp);
 		mrp_port_offload_set_state(mrp->s_port,
 					   BR_MRP_PORT_STATE_FORWARDING);
-		mrp_clear_fdb_start(mrp, ntohs(hdr->interval));
+		mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
 		mrp_set_mrc_state(mrp, MRP_MRC_STATE_PT_IDLE);
 		break;
 	case MRP_MRC_STATE_DE:
 		mrp->ring_link_curr_max = mrp->ring_link_conf_max;
 		mrp_ring_link_down_stop(mrp);
-		mrp_clear_fdb_start(mrp, ntohs(hdr->interval));
+		mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
 		mrp_set_mrc_state(mrp, MRP_MRC_STATE_DE_IDLE);
 		break;
 	case MRP_MRC_STATE_PT_IDLE:
-		mrp_clear_fdb_start(mrp, ntohs(hdr->interval));
+		mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
 		break;
 	}
 }
