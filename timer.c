@@ -119,12 +119,15 @@ static void mrp_ring_topo_expired(struct ev_loop *loop,
 	pthread_mutex_lock(&mrp->lock);
 
 	if (mrp->ring_topo_curr_max > 0) {
-		mrp_ring_topo_req(mrp, mrp->ring_topo_curr_max);
+		mrp_ring_topo_send(mrp, mrp->ring_topo_curr_max *
+					mrp->ring_topo_conf_interval);
 
 		mrp->ring_topo_curr_max--;
 	} else {
 		mrp->ring_topo_curr_max = mrp->ring_topo_conf_max - 1;
-		mrp_ring_topo_req(mrp, 0);
+
+		mrp_offload_flush(mrp);
+		mrp_ring_topo_send(mrp, 0);
 
 		mrp_ring_topo_stop(mrp);
 	}

@@ -114,6 +114,7 @@ struct mrp *mrp_find(uint32_t br_ifindex, uint32_t ring_nr);
 
 void mrp_ring_test_req(struct mrp *mrp, uint32_t interval);
 void mrp_ring_topo_req(struct mrp *mrp, uint32_t interval);
+void mrp_ring_topo_send(struct mrp *mrp, uint32_t interval);
 void mrp_ring_link_req(struct mrp_port *p, bool up, uint32_t interval);
 
 void mrp_set_mrm_state(struct mrp *mrp, enum mrp_mrm_state_type state);

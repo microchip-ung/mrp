@@ -348,6 +348,12 @@ out:
 	free(fb);
 }
 
+void mrp_ring_topo_send(struct mrp *mrp, uint32_t time)
+{
+	mrp_send_ring_topo(mrp->p_port, time);
+	mrp_send_ring_topo(mrp->s_port, time);
+}
+
 /* Send MRP_TopologyChange frames on both MRP ports and start a timer to send
  * continuously frames with specific interval. If the interval is 0, then the
  * FDB needs to be clear, meaning that there was a change in the topology of the
@@ -357,8 +363,7 @@ void mrp_ring_topo_req(struct mrp *mrp, uint32_t time)
 {
 	printf("topo_req: %d\n", time);
 
-	mrp_send_ring_topo(mrp->p_port, time * mrp->ring_topo_conf_max);
-	mrp_send_ring_topo(mrp->s_port, time * mrp->ring_topo_conf_max);
+	mrp_ring_topo_send(mrp, time * mrp->ring_topo_conf_max);
 
 	if (!time) {
 		mrp_offload_flush(mrp);
