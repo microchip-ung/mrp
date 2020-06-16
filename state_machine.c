@@ -1456,6 +1456,13 @@ void mrp_port_open(struct mrp_port *p, bool loc)
 
 	pthread_mutex_lock(&mrp->lock);
 
+	if (mrp->ring_role != BR_MRP_RING_ROLE_MRM &&
+	    mrp->mra_support != true)
+		goto out;
+
+	if (p->loc == loc)
+		goto out;
+
 	p->loc = loc;
 
 	if (!mrp->p_port->loc ||
@@ -1465,6 +1472,7 @@ void mrp_port_open(struct mrp_port *p, bool loc)
 		mrp_ring_open(mrp);
 	}
 
+out:
 	pthread_mutex_unlock(&mrp->lock);
 }
 
