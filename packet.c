@@ -92,6 +92,7 @@ static struct sock_filter mrp_filter[] = {
 int packet_socket_init(void)
 {
 	int optval = 7;
+	int ignore_out = 1;
 
 	struct sock_fprog prog =
 	{
@@ -108,6 +109,8 @@ int packet_socket_init(void)
 
 	if (setsockopt(s, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)) < 0) {
 		fprintf(stderr, "setsockopt packet filter failed: %m\n");
+	} else if (setsockopt(s, SOL_PACKET, PACKET_IGNORE_OUTGOING, &ignore_out, sizeof(ignore_out)) < 0) {
+		fprintf(stderr, "setsockopt packet ignore outgoing: %m\n");
 	} else if (setsockopt(s, SOL_SOCKET, SO_PRIORITY, &optval, 4)) {
 		fprintf(stderr, "setsockopt priority failed: %m\n");
 	} else if (fcntl(s, F_SETFL, O_NONBLOCK) < 0) {
