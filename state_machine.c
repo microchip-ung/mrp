@@ -1413,6 +1413,8 @@ static int mrp_port_init(uint32_t p_ifindex, struct mrp *mrp,
 	if (!port)
 		return -ENOMEM;
 
+	memset(port, 0x0, sizeof(struct mrp_port));
+
 	port->mrp = mrp;
 	port->ifindex = p_ifindex;
 	if_get_mac(port->ifindex, port->macaddr);
