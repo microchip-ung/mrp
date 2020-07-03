@@ -321,6 +321,66 @@ int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
+int mrp_offload_set_in_state(struct mrp *mrp,
+			     enum br_mrp_in_state_type state)
+{
+	struct rtattr *afspec, *afmrp, *af_submrp;
+	struct request req = { 0 };
+
+	mrp_nl_bridge_prepare(mrp->ifindex, RTM_SETLINK, &req, &afspec, &afmrp,
+			      &af_submrp, IFLA_BRIDGE_MRP_IN_STATE);
+
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_STATE_IN_ID,
+		  mrp->in_id);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_STATE_STATE,
+		  state);
+
+	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
+}
+
+int mrp_offload_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role)
+{
+	struct rtattr *afspec, *afmrp, *af_submrp;
+	struct request req = { 0 };
+
+	mrp->in_role = role;
+
+	mrp_nl_bridge_prepare(mrp->ifindex, RTM_SETLINK, &req, &afspec, &afmrp,
+			      &af_submrp, IFLA_BRIDGE_MRP_IN_ROLE);
+
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_ROLE_RING_ID,
+		  mrp->ring_nr);
+	addattr16(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_ROLE_IN_ID,
+		  mrp->in_id);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_ROLE_I_IFINDEX,
+		  mrp->i_port->ifindex);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_IN_ROLE_ROLE,
+		  role);
+
+	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
+}
+
+int mrp_offload_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
+			      uint32_t period)
+{
+	struct rtattr *afspec, *afmrp, *af_submrp;
+	struct request req = { 0 };
+
+	mrp_nl_bridge_prepare(mrp->ifindex, RTM_SETLINK, &req, &afspec, &afmrp,
+			      &af_submrp, IFLA_BRIDGE_MRP_START_IN_TEST);
+
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_IN_TEST_IN_ID,
+		  mrp->in_id);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_IN_TEST_INTERVAL,
+		  interval);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_IN_TEST_MAX_MISS,
+		  max);
+	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_IN_TEST_PERIOD,
+		  period);
+
+	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
+}
+
 int mrp_offload_flush(struct mrp *mrp)
 {
 	struct request req = { 0 };
@@ -342,6 +402,13 @@ int mrp_offload_flush(struct mrp *mrp)
 		return -1;
 
 	req.ifm.ifi_index = mrp->s_port->ifindex;
+	if (rtnl_talk(&rth, &req.n, NULL) < 0)
+		return -1;
+
+	if (!mrp->i_port)
+		return 0;
+
+	req.ifm.ifi_index = mrp->i_port->ifindex;
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
 		return -1;
 

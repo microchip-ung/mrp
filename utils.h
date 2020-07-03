@@ -22,6 +22,11 @@ enum mrp_ring_recovery_type {
 	MRP_RING_RECOVERY_10,
 };
 
+enum mrp_in_recovery_type {
+	MRP_IN_RECOVERY_500,
+	MRP_IN_RECOVERY_200,
+};
+
 enum mrp_mrm_state_type {
 	/* Awaiting Connection State 1 */
 	MRP_MRM_STATE_AC_STAT1 = 0x0,
@@ -44,6 +49,24 @@ enum mrp_mrc_state_type {
 	MRP_MRC_STATE_DE = 0x3,
 	/* Pass Through Idle state */
 	MRP_MRC_STATE_PT_IDLE = 0x4,
+};
+
+enum mrp_mim_state_type {
+	/* Awaiting Connection State 1 */
+	MRP_MIM_STATE_AC_STAT1 = 0x0,
+	/* Check Interconnection, Interconnection Open state */
+	MRP_MIM_STATE_CHK_IO = 0x1,
+	/* Check Interconnection, Interconnection Closed state */
+	MRP_MIM_STATE_CHK_IC = 0x2,
+};
+
+enum mrp_mic_state_type {
+	/* Awaiting Connection State 1 */
+	MRP_MIC_STATE_AC_STAT1 = 0x0,
+	/* Pass Through */
+	MRP_MIC_STATE_PT = 0x1,
+	/* Interconnection Port Idle state */
+	MRP_MIC_STATE_IP_IDLE = 0x2,
 };
 
 /* utils.c */
@@ -95,6 +118,10 @@ struct mrp_status {
 	int prio;
 	int ring_recv;
 	int react_on_link_change;
+	int in_role;
+	int in_state;
+	int iport;
+	int in_id;
 };
 
 #define CTL_DECLARE(name) \
@@ -102,7 +129,8 @@ int CTL_ ## name name ## _ARGS
 
 #define CMD_CODE_addmrp    101
 #define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, \
-		     uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change)
+		     uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change, \
+		     int in_role, uint16_t in_id, int iport)
 struct addmrp_IN
 {
 	int br;
@@ -113,6 +141,9 @@ struct addmrp_IN
 	int prio;
 	int ring_recv;
 	int react_on_link_change;
+	int in_role;
+	int in_id;
+	int iport;
 };
 struct addmrp_OUT
 {
@@ -127,9 +158,14 @@ struct addmrp_OUT
      in->prio = prio;                                            \
      in->ring_recv = ring_recv;                                  \
      in->react_on_link_change = react_on_link_change;            \
+     in->in_role = in_role;                                      \
+     in->in_id = in_id;                                          \
+     in->iport = iport;                                          \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
-#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role, in->prio, in->ring_recv, in->react_on_link_change)
+#define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role,\
+		     in->prio, in->ring_recv, in->react_on_link_change,\
+		     in->in_role, in->in_id, in->iport)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102

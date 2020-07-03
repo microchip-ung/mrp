@@ -58,6 +58,37 @@ static char *ring_role_str(int ring_role)
 	}
 }
 
+static int valid_in_role(char *arg)
+{
+	if (strcmp(arg, "disabled") == 0 ||
+	    strcmp(arg, "mic") == 0 ||
+	    strcmp(arg, "mim") == 0)
+		return 1;
+	return 0;
+}
+
+static enum br_mrp_in_role_type in_role_int(char *arg)
+{
+	if (strcmp(arg, "disabled") == 0)
+		return BR_MRP_IN_ROLE_DISABLED;
+	if (strcmp(arg, "mic") == 0)
+		return BR_MRP_IN_ROLE_MIC;
+	if (strcmp(arg, "mim") == 0)
+		return BR_MRP_IN_ROLE_MIM;
+	return BR_MRP_IN_ROLE_DISABLED;
+}
+
+static char *in_role_str(int in_role)
+{
+	switch (in_role) {
+	case BR_MRP_IN_ROLE_DISABLED: return "Disabled";
+	case BR_MRP_IN_ROLE_MIC: return "MIC";
+	case BR_MRP_IN_ROLE_MIM: return "MIM";
+	default:
+		return "Unknown int role";
+	}
+}
+
 static int valid_ring_recv(char *arg)
 {
 	if (strcmp(arg, "500") == 0 ||
@@ -115,6 +146,28 @@ static char *mrc_state_str(int mrc_state)
 	case MRP_MRC_STATE_PT_IDLE: return "PT_IDLE";
 	default:
 		return "Unknwon mrc_state";
+	}
+}
+
+static char *mim_state_str(int mim_state)
+{
+	switch (mim_state) {
+	case MRP_MIM_STATE_AC_STAT1: return "AC_STAT1";
+	case MRP_MIM_STATE_CHK_IO: return "CHK_IO";
+	case MRP_MIM_STATE_CHK_IC: return "CHK_IC";
+	default:
+		return "Unknown mim_state";
+	}
+}
+
+static char *mic_state_str(int mic_state)
+{
+	switch (mic_state) {
+	case MRP_MIC_STATE_AC_STAT1: return "AC_STAT1";
+	case MRP_MIC_STATE_PT: return "PT";
+	case MRP_MIC_STATE_IP_IDLE: return "IP_IDLE";
+	default:
+		return "Unknwon mic_state";
 	}
 }
 
@@ -248,6 +301,8 @@ static int cmd_addmrp(int argc, char *const *argv)
 	uint16_t prio = MRP_DEFAULT_PRIO;
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
 	uint8_t react_on_link_change = 1;
+	int in_role = BR_MRP_IN_ROLE_DISABLED, iport = 0;
+	uint16_t in_id;
 
 	/* skip the command */
 	argv++;
@@ -285,6 +340,17 @@ static int cmd_addmrp(int argc, char *const *argv)
 				react_on_link_change = 1;
 			else
 				react_on_link_change = 0;
+		} else if (strcmp(*argv, "in_role") == 0) {
+			NEXT_ARG();
+			if (!valid_in_role(*argv))
+				return -1;
+			in_role = in_role_int(*argv);
+		} else if (strcmp(*argv, "in_id") == 0) {
+			NEXT_ARG();
+			in_id = atoi(*argv);
+		} else if (strcmp(*argv, "iport") == 0) {
+			NEXT_ARG();
+			iport = if_nametoindex(*argv);
 		}
 
 		argc--; argv++;
@@ -295,7 +361,8 @@ static int cmd_addmrp(int argc, char *const *argv)
 		return -1;
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
-			  ring_recv, react_on_link_change);
+			  ring_recv, react_on_link_change, in_role,
+			  in_id, iport);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -344,12 +411,23 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("mra_support: %d ", status[i].mra_support);
 		printf("ring_role: %s ", ring_role_str(status[i].ring_role));
 		printf("prio: %d ", status[i].prio);
-		printf("ring_recv: %s ", ring_recv_str(status[i].ring_recv));
+		printf("ring_recv: %s \n", ring_recv_str(status[i].ring_recv));
 		printf("react_on_link_change: %d ", status[i].react_on_link_change);
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRM)
 			printf("ring_state: %s \n", mrm_state_str(status[i].ring_state));
 		if (status[i].ring_role == BR_MRP_RING_ROLE_MRC)
 			printf("ring_state: %s \n", mrc_state_str(status[i].ring_state));
+
+		if (status[i].in_role == BR_MRP_IN_ROLE_DISABLED)
+			continue;
+
+		printf("iport: %s ", if_indextoname(status[i].iport, ifname));
+		printf("in_id: %d ", status[i].in_id);
+		printf("in_role: %s ", in_role_str(status[i].in_role));
+		if (status[i].in_role == BR_MRP_IN_ROLE_MIM)
+			printf("in_state: %s \n", mim_state_str(status[i].in_state));
+		if (status[i].in_role == BR_MRP_IN_ROLE_MIC)
+			printf("in_state: %s \n", mic_state_str(status[i].in_state));
 	}
 
 	return 0;
@@ -367,7 +445,7 @@ static const struct command commands[] =
 {
 	/* Add/delete bridges */
 	{"addmrp", cmd_addmrp,
-	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio>]", "Create MRP instance"},
+	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio> in_role <role> in_id <id> iport <iport>]", "Create MRP instance"},
 	{"delmrp", cmd_delmrp,
 	 "bridge <bridge> ring_nr <ring_nr>", "Create MRP instance"},
 	{"getmrp", cmd_getmrp, "", "Show MRP instances"},
