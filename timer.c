@@ -67,12 +67,28 @@ void mrp_ring_open(struct mrp *mrp)
 	mrp_set_mrm_state(mrp, MRP_MRM_STATE_CHK_RO);
 }
 
+void mrp_in_open(struct mrp *mrp)
+{
+	mrp_port_offload_set_state(mrp->i_port, BR_MRP_PORT_STATE_FORWARDING);
+
+	mrp->in_test_curr_max = mrp->in_test_conf_max - 1;
+	mrp->in_test_curr = 0;
+
+	mrp_in_topo_req(mrp, mrp->in_topo_conf_interval);
+	mrp_in_test_req(mrp, mrp->in_test_conf_interval);
+
+	mrp->in_transitions++;
+	mrp_set_mim_state(mrp, MRP_MIM_STATE_CHK_IO);
+}
+
 static void mrp_clear_fdb_expired(struct ev_loop *loop,
 				  ev_timer *w, int revents)
 {
 	struct mrp *mrp = container_of(w, struct mrp, clear_fdb_work);
 
 	mrp_offload_flush(mrp);
+
+	mrp_clear_fdb_stop(mrp);
 }
 
 static void mrp_ring_test_expired(struct ev_loop *loop,
@@ -91,8 +107,8 @@ out:
 	pthread_mutex_unlock(&mrp->lock);
 }
 
-static void mrp_watcher_expired(struct ev_loop *loop,
-				ev_timer *w, int revents)
+static void mrp_ring_watcher_expired(struct ev_loop *loop,
+				     ev_timer *w, int revents)
 {
 	struct mrp *mrp = container_of(w, struct mrp, ring_watcher_work);
 
@@ -202,6 +218,131 @@ static void mrp_ring_link_down_expired(struct ev_loop *loop,
 	pthread_mutex_unlock(&mrp->lock);
 }
 
+static void mrp_in_test_expired(struct ev_loop *loop,
+				ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_test_work);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	if (mrp->mrm_state == MRP_MRM_STATE_AC_STAT1)
+		goto out;
+
+	mrp->add_test = false;
+
+out:
+	pthread_mutex_unlock(&mrp->lock);
+}
+
+static void mrp_in_watcher_expired(struct ev_loop *loop,
+				   ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_watcher_work);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	mrp_offload_send_in_test(mrp, mrp->in_test_conf_interval,
+				 mrp->in_test_conf_max,
+				 mrp->in_test_conf_period);
+
+	mrp->in_watcher_work.repeat = (ev_tstamp)mrp->in_test_conf_period/ 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_watcher_work);
+
+	pthread_mutex_unlock(&mrp->lock);
+}
+
+static void mrp_in_topo_expired(struct ev_loop *loop,
+				ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_topo_work);
+
+	printf("int topo expired: in_topo_curr_max: %d\n",
+	       mrp->in_topo_curr_max);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	if (mrp->in_topo_curr_max > 0) {
+		mrp_in_topo_send(mrp, mrp->in_topo_curr_max *
+				 mrp->in_topo_conf_interval);
+
+		mrp->in_topo_curr_max--;
+	} else {
+		mrp->in_topo_curr_max = mrp->in_topo_conf_max - 1;
+
+		mrp_offload_flush(mrp);
+		mrp_in_topo_send(mrp, 0);
+
+		mrp_in_topo_stop(mrp);
+	}
+
+	pthread_mutex_unlock(&mrp->lock);
+}
+
+static void mrp_in_link_up_expired(struct ev_loop *loop,
+				   ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_link_up_work);
+	uint32_t interval;
+	uint32_t delay;
+
+	printf("int link up expired: in_link_curr_max: %d\n",
+	       mrp->in_link_curr_max);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	delay = mrp->in_link_conf_interval;
+
+	if (mrp->in_link_curr_max > 0) {
+		mrp->in_link_curr_max--;
+
+		mrp_in_link_up_start(mrp, delay);
+
+		interval = mrp->in_link_curr_max * delay;
+
+		mrp_in_link_req(mrp, true, interval);
+	} else {
+		mrp->in_link_curr_max = mrp->in_link_conf_max;
+		mrp_port_offload_set_state(mrp->i_port,
+					   BR_MRP_PORT_STATE_FORWARDING);
+		mrp_set_mic_state(mrp, MRP_MIC_STATE_IP_IDLE);
+
+		mrp_in_link_up_stop(mrp);
+	}
+
+	pthread_mutex_unlock(&mrp->lock);
+}
+
+static void mrp_in_link_down_expired(struct ev_loop *loop,
+				     ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_link_down_work);
+	uint32_t interval;
+	uint32_t delay;
+
+	printf("int link down expired: in_link_curr_max: %d\n",
+	       mrp->in_link_curr_max);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	delay = mrp->in_link_conf_interval;
+
+	if (mrp->in_link_curr_max > 0) {
+		mrp->in_link_curr_max--;
+
+		mrp_in_link_down_start(mrp, delay);
+
+		interval = mrp->in_link_curr_max * delay;
+
+		mrp_in_link_req(mrp, false, interval);
+	} else {
+		mrp->in_link_curr_max = mrp->in_link_conf_max;
+
+		mrp_in_link_down_stop(mrp);
+	}
+
+	pthread_mutex_unlock(&mrp->lock);
+}
+
 int mrp_ring_test_start(struct mrp *mrp, uint32_t interval)
 {
 	int err;
@@ -236,12 +377,14 @@ void mrp_ring_test_stop(struct mrp *mrp)
 
 void mrp_ring_topo_start(struct mrp *mrp, uint32_t interval)
 {
+	mrp->ring_topo_running = true;
 	mrp->ring_topo_work.repeat = (ev_tstamp)interval / 1000000;
 	ev_timer_again(EV_DEFAULT, &mrp->ring_topo_work);
 }
 
 void mrp_ring_topo_stop(struct mrp *mrp)
 {
+	mrp->ring_topo_running = false;
 	ev_timer_stop(EV_DEFAULT, &mrp->ring_topo_work);
 }
 
@@ -271,9 +414,75 @@ void mrp_clear_fdb_start(struct mrp *mrp, uint32_t interval)
 {
 	mrp->clear_fdb_work.repeat = (ev_tstamp)interval / 1000000;
 	ev_timer_again(EV_DEFAULT, &mrp->clear_fdb_work);
+	if (interval == 0)
+		mrp_offload_flush(mrp);
 }
 
-static void mrp_clear_fdb_stop(struct mrp *mrp)
+int mrp_in_test_start(struct mrp *mrp, uint32_t interval)
+{
+	int err;
+
+	if (interval == mrp->in_test_hw_interval)
+		goto update_only_sw;
+
+	mrp->in_watcher_work.repeat = (ev_tstamp)mrp->in_test_conf_period/ 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_watcher_work);
+
+	mrp->in_test_hw_interval = interval;
+	err = mrp_offload_send_in_test(mrp, interval, mrp->in_test_conf_max,
+				       mrp->in_test_conf_period);
+	if (err)
+		return err;
+
+update_only_sw:
+	mrp->in_test_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_test_work);
+	return 0;
+}
+
+void mrp_in_test_stop(struct mrp *mrp)
+{
+	mrp_offload_send_in_test(mrp, 0, 0, 0);
+	/* Make sure that at the next start the HW is updated */
+	mrp->in_test_hw_interval = -1;
+	ev_timer_stop(EV_DEFAULT, &mrp->in_test_work);
+	ev_timer_stop(EV_DEFAULT, &mrp->in_watcher_work);
+}
+
+void mrp_in_topo_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->in_topo_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_topo_work);
+}
+
+void mrp_in_topo_stop(struct mrp *mrp)
+{
+	ev_timer_stop(EV_DEFAULT, &mrp->in_topo_work);
+}
+
+void mrp_in_link_up_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->in_link_up_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_link_up_work);
+}
+
+void mrp_in_link_up_stop(struct mrp *mrp)
+{
+	ev_timer_stop(EV_DEFAULT, &mrp->in_link_up_work);
+}
+
+void mrp_in_link_down_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->in_link_down_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_link_down_work);
+}
+
+void mrp_in_link_down_stop(struct mrp *mrp)
+{
+	ev_timer_stop(EV_DEFAULT, &mrp->in_link_down_work);
+}
+
+void mrp_clear_fdb_stop(struct mrp *mrp)
 {
 	ev_timer_stop(EV_DEFAULT, &mrp->clear_fdb_work);
 }
@@ -286,14 +495,26 @@ void mrp_timer_stop(struct mrp *mrp)
 	mrp_ring_link_up_stop(mrp);
 	mrp_ring_link_down_stop(mrp);
 	mrp_ring_test_stop(mrp);
+
+	if (mrp->in_role != BR_MRP_IN_ROLE_DISABLED) {
+		mrp_in_topo_stop(mrp);
+		mrp_in_link_up_stop(mrp);
+		mrp_in_link_down_stop(mrp);
+		mrp_in_test_stop(mrp);
+	}
 }
 
 void mrp_timer_init(struct mrp *mrp)
 {
-	ev_init(&mrp->ring_topo_work, mrp_ring_topo_expired);
 	ev_init(&mrp->clear_fdb_work, mrp_clear_fdb_expired);
+	ev_init(&mrp->ring_topo_work, mrp_ring_topo_expired);
 	ev_init(&mrp->ring_test_work, mrp_ring_test_expired);
-	ev_init(&mrp->ring_watcher_work, mrp_watcher_expired);
+	ev_init(&mrp->ring_watcher_work, mrp_ring_watcher_expired);
 	ev_init(&mrp->ring_link_up_work, mrp_ring_link_up_expired);
 	ev_init(&mrp->ring_link_down_work, mrp_ring_link_down_expired);
+	ev_init(&mrp->in_watcher_work, mrp_in_watcher_expired);
+	ev_init(&mrp->in_test_work, mrp_in_test_expired);
+	ev_init(&mrp->in_topo_work, mrp_in_topo_expired);
+	ev_init(&mrp->in_link_up_work, mrp_in_link_up_expired);
+	ev_init(&mrp->in_link_down_work, mrp_in_link_down_expired);
 }

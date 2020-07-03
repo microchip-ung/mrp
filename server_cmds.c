@@ -26,10 +26,12 @@ static struct rtnl_handle rth;
 static ev_io netlink_watcher;
 
 int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
-	       uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change)
+	       uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change,
+	       int in_role, uint16_t in_id, int iport)
 {
 	return mrp_add(br_index, ring_nr, pport, sport, ring_role, prio,
-		       ring_recv, react_on_link_change);
+		       ring_recv, react_on_link_change, in_role, in_id,
+		       iport);
 }
 
 int CTL_delmrp(int br_index, int ring_nr)
@@ -111,8 +113,13 @@ static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 		parse_rtattr_nested(aftb, IFLA_BRPORT_MAX, tb[IFLA_PROTINFO]);
 
 		if (aftb[IFLA_BRPORT_MRP_RING_OPEN]) {
-			mrp_port_open(port,
-				      rta_getattr_u8(aftb[IFLA_BRPORT_MRP_RING_OPEN]));
+			mrp_port_ring_open(port,
+					   rta_getattr_u8(aftb[IFLA_BRPORT_MRP_RING_OPEN]));
+		}
+
+		if (aftb[IFLA_BRPORT_MRP_IN_OPEN]) {
+			mrp_port_in_open(port,
+					  rta_getattr_u8(aftb[IFLA_BRPORT_MRP_IN_OPEN]));
 		}
 	}
 
