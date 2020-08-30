@@ -1,7 +1,7 @@
 # Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
 # SPDX-License-Identifier: (GPL-2.0)
 
-project (mrp)
+project (mrp C)
 
 cmake_minimum_required(VERSION 2.6)
 
