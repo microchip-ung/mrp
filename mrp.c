@@ -302,7 +302,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
 	uint8_t react_on_link_change = 1;
 	int in_role = BR_MRP_IN_ROLE_DISABLED, iport = 0;
-	uint16_t in_id;
+	uint16_t in_id = 0;
 
 	/* skip the command */
 	argv++;
