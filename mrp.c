@@ -447,7 +447,7 @@ static const struct command commands[] =
 	{"addmrp", cmd_addmrp,
 	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio> in_role <role> in_id <id> iport <iport>]", "Create MRP instance"},
 	{"delmrp", cmd_delmrp,
-	 "bridge <bridge> ring_nr <ring_nr>", "Create MRP instance"},
+	 "bridge <bridge> ring_nr <ring_nr>", "Delete MRP instance"},
 	{"getmrp", cmd_getmrp, "", "Show MRP instances"},
 };
 
