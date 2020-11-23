@@ -21,17 +21,21 @@
 #include "state_machine.h"
 #include "list.h"
 #include "offload.h"
+#include "cfm_netlink.h"
 
 static struct rtnl_handle rth;
 static ev_io netlink_watcher;
 
 int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
 	       uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change,
-	       int in_role, uint16_t in_id, int iport)
+	       int in_role, uint16_t in_id, int iport, int in_mode,
+	       int cfm_instance, int cfm_level, int cfm_mepid,
+	       int cfm_peer_mepid, char *cfm_maid, char *cfm_dmac)
 {
 	return mrp_add(br_index, ring_nr, pport, sport, ring_role, prio,
 		       ring_recv, react_on_link_change, in_role, in_id,
-		       iport);
+		       iport, in_mode, cfm_instance, cfm_level, cfm_mepid,
+		       cfm_peer_mepid, cfm_maid, cfm_dmac);
 }
 
 int CTL_delmrp(int br_index, int ring_nr)
@@ -47,11 +51,15 @@ int CTL_getmrp(int *count, struct mrp_status *status)
 static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 			  void *arg)
 {
+	struct rtattr *infotb[IFLA_BRIDGE_CFM_MEP_STATUS_MAX + 1];
+	struct rtattr *aftb[IFLA_BRIDGE_MAX + 1];
 	struct ifinfomsg *ifi = NLMSG_DATA(n);
 	struct rtattr * tb[IFLA_MAX + 1];
 	struct mrp_port *port;
 	int len = n->nlmsg_len;
 	int af_family;
+	int rem, instance;
+	struct rtattr *i, *list;
 
 	if (n->nlmsg_type == NLMSG_DONE)
 		return 0;
@@ -82,6 +90,34 @@ static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 			       (__u8*)RTA_DATA(tb[IFLA_ADDRESS]));
 	}
 
+	if (tb[IFLA_AF_SPEC]) {
+		parse_rtattr_flags(aftb, IFLA_BRIDGE_MAX, RTA_DATA(tb[IFLA_AF_SPEC]),
+				   RTA_PAYLOAD(tb[IFLA_AF_SPEC]), NLA_F_NESTED);
+		if (!aftb[IFLA_BRIDGE_CFM])
+			goto mrp_process;
+
+		list = aftb[IFLA_BRIDGE_CFM];
+		rem = RTA_PAYLOAD(list);
+
+		instance = 0xFFFFFFFF;
+		for (i = RTA_DATA(list); RTA_OK(i, rem); i = RTA_NEXT(i, rem)) {
+			if (i->rta_type != (IFLA_BRIDGE_CFM_CC_PEER_STATUS_INFO | NLA_F_NESTED))
+				continue;
+
+			parse_rtattr_flags(infotb, IFLA_BRIDGE_CFM_CC_PEER_STATUS_MAX, RTA_DATA(i), RTA_PAYLOAD(i), NLA_F_NESTED);
+			if (!infotb[IFLA_BRIDGE_CFM_CC_PEER_STATUS_INSTANCE])
+				continue;
+
+			if (instance != rta_getattr_u32(infotb[IFLA_BRIDGE_CFM_CC_PEER_STATUS_INSTANCE])) {
+				instance = rta_getattr_u32(infotb[IFLA_BRIDGE_CFM_CC_PEER_STATUS_INSTANCE]);
+			}
+
+			mrp_cfm_link_change(ifi->ifi_index, rta_getattr_u32(infotb[IFLA_BRIDGE_CFM_CC_PEER_STATUS_PEER_MEPID]),
+					    rta_getattr_u32(infotb[IFLA_BRIDGE_CFM_CC_PEER_STATUS_CCM_DEFECT]));
+		}
+	}
+
+mrp_process:
 	if (!port)
 		return 0;
 
@@ -170,7 +206,12 @@ int CTL_init(void)
 	}
 
 	if (mrp_offload_init()) {
-		printf("offload init failed\n");
+		printf("mrp offload init failed\n");
+		return -1;
+	}
+
+	if (cfm_offload_init()) {
+		printf("cfm offload init failed\n");
 		return -1;
 	}
 

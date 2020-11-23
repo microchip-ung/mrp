@@ -8,6 +8,7 @@
 
 #include <netinet/in.h>
 #include <linux/if_bridge.h>
+#include <linux/cfm_bridge.h>
 #include <asm/byteorder.h>
 #include <stdbool.h>
 
@@ -69,6 +70,11 @@ enum mrp_mic_state_type {
 	MRP_MIC_STATE_IP_IDLE = 0x2,
 };
 
+enum mrp_in_mode_type {
+	MRP_IN_MODE_RC,
+	MRP_IN_MODE_LC,
+};
+
 /* utils.c */
 struct frame_buf {
 	unsigned char *start;
@@ -122,15 +128,18 @@ struct mrp_status {
 	int in_state;
 	int iport;
 	int in_id;
+	int in_mode;
 };
 
 #define CTL_DECLARE(name) \
 int CTL_ ## name name ## _ARGS
 
 #define CMD_CODE_addmrp    101
-#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role, \
+#define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role,       \
 		     uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change, \
-		     int in_role, uint16_t in_id, int iport)
+		     int in_role, uint16_t in_id, int iport, int in_mode,            \
+		     int cfm_instance, int cfm_level, int cfm_mepid,                 \
+		     int cfm_peer_mepid, char *cfm_maid, char *cfm_dmac)
 struct addmrp_IN
 {
 	int br;
@@ -144,6 +153,13 @@ struct addmrp_IN
 	int in_role;
 	int in_id;
 	int iport;
+	int in_mode;
+	int cfm_instance;
+	int cfm_level;
+	int cfm_mepid;
+	int cfm_peer_mepid;
+	char cfm_maid[CFM_MAID_LENGTH];
+	char cfm_dmac[ETH_ALEN];
 };
 struct addmrp_OUT
 {
@@ -161,11 +177,20 @@ struct addmrp_OUT
      in->in_role = in_role;                                      \
      in->in_id = in_id;                                          \
      in->iport = iport;                                          \
+     in->in_mode = in_mode;                                      \
+     in->cfm_instance = cfm_instance;                            \
+     in->cfm_level = cfm_level;                                  \
+     in->cfm_mepid = cfm_mepid;                                  \
+     in->cfm_peer_mepid = cfm_peer_mepid;                        \
+     strncpy(in->cfm_maid, cfm_maid, CFM_MAID_LENGTH);           \
+     strncpy(in->cfm_dmac, cfm_dmac, ETH_ALEN);                  \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
 #define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role,\
 		     in->prio, in->ring_recv, in->react_on_link_change,\
-		     in->in_role, in->in_id, in->iport)
+		     in->in_role, in->in_id, in->iport, in->in_mode,\
+		     in->cfm_instance, in->cfm_level, in->cfm_mepid, \
+		     in->cfm_peer_mepid, in->cfm_maid, in->cfm_dmac)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102

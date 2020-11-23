@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include "state_machine.h"
+#include "cfm_netlink.h"
 
 static bool mrp_mrc_ring_open(struct mrp *mrp)
 {
@@ -343,6 +344,50 @@ static void mrp_in_link_down_expired(struct ev_loop *loop,
 	pthread_mutex_unlock(&mrp->lock);
 }
 
+static void mrp_in_link_status_expired(struct ev_loop *loop,
+				       ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, in_link_status_work);
+	uint32_t interval;
+	uint32_t delay;
+
+	printf("in link status expired: in_link_status_curr_max: %d\n",
+	       mrp->in_link_status_curr_max);
+
+	pthread_mutex_lock(&mrp->lock);
+
+	delay = mrp->in_link_status_conf_interval;
+
+	if (mrp->in_link_status_curr_max > 0) {
+		mrp->in_link_status_curr_max--;
+
+		interval = mrp->in_link_status_curr_max * delay;
+
+		mrp_in_link_status_req(mrp,  interval);
+	} else {
+		mrp->in_link_status_curr_max = mrp->in_link_status_conf_max;
+
+		mrp_in_link_status_stop(mrp);
+	}
+
+	pthread_mutex_unlock(&mrp->lock);
+}
+
+static void mrp_cfm_ccm_expired(struct ev_loop *loop,
+				ev_timer *w, int revents)
+{
+	struct mrp *mrp = container_of(w, struct mrp, cfm_ccm_work);
+	struct mac_addr dmac;
+
+	memcpy(dmac.addr, mrp->cfm_ccm_dmac, ETH_ALEN);
+
+	mrp->cfm_ccm_work.repeat = (ev_tstamp)mrp->cfm_ccm_period / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->cfm_ccm_work);
+
+	cfm_offload_cc_ccm_tx(mrp->ifindex, mrp->cfm_instance, &dmac, 1,
+			      mrp->cfm_ccm_period, 1, 100, 1, 200);
+}
+
 int mrp_ring_test_start(struct mrp *mrp, uint32_t interval)
 {
 	int err;
@@ -410,14 +455,6 @@ void mrp_ring_link_down_stop(struct mrp *mrp)
 	ev_timer_stop(EV_DEFAULT, &mrp->ring_link_down_work);
 }
 
-void mrp_clear_fdb_start(struct mrp *mrp, uint32_t interval)
-{
-	mrp->clear_fdb_work.repeat = (ev_tstamp)interval / 1000000;
-	ev_timer_again(EV_DEFAULT, &mrp->clear_fdb_work);
-	if (interval == 0)
-		mrp_offload_flush(mrp);
-}
-
 int mrp_in_test_start(struct mrp *mrp, uint32_t interval)
 {
 	int err;
@@ -482,9 +519,39 @@ void mrp_in_link_down_stop(struct mrp *mrp)
 	ev_timer_stop(EV_DEFAULT, &mrp->in_link_down_work);
 }
 
+void mrp_in_link_status_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->in_link_status_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->in_link_status_work);
+}
+
+void mrp_in_link_status_stop(struct mrp *mrp)
+{
+	ev_timer_stop(EV_DEFAULT, &mrp->in_link_status_work);
+}
+
+void mrp_clear_fdb_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->clear_fdb_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->clear_fdb_work);
+	if (interval == 0)
+		mrp_offload_flush(mrp);
+}
+
 void mrp_clear_fdb_stop(struct mrp *mrp)
 {
 	ev_timer_stop(EV_DEFAULT, &mrp->clear_fdb_work);
+}
+
+void mrp_cfm_ccm_start(struct mrp *mrp, uint32_t interval)
+{
+	mrp->cfm_ccm_work.repeat = (ev_tstamp)interval / 1000000;
+	ev_timer_again(EV_DEFAULT, &mrp->cfm_ccm_work);
+}
+
+void mrp_cfm_ccm_stop(struct mrp *mrp)
+{
+	ev_timer_stop(EV_DEFAULT, &mrp->cfm_ccm_work);
 }
 
 /* Stops all the timers */
@@ -500,7 +567,13 @@ void mrp_timer_stop(struct mrp *mrp)
 		mrp_in_topo_stop(mrp);
 		mrp_in_link_up_stop(mrp);
 		mrp_in_link_down_stop(mrp);
-		mrp_in_test_stop(mrp);
+
+		if (mrp->in_mode == MRP_IN_MODE_RC) {
+			mrp_in_test_stop(mrp);
+		} else {
+			mrp_in_link_status_stop(mrp);
+			mrp_cfm_ccm_stop(mrp);
+		}
 	}
 }
 
@@ -517,4 +590,6 @@ void mrp_timer_init(struct mrp *mrp)
 	ev_init(&mrp->in_topo_work, mrp_in_topo_expired);
 	ev_init(&mrp->in_link_up_work, mrp_in_link_up_expired);
 	ev_init(&mrp->in_link_down_work, mrp_in_link_down_expired);
+	ev_init(&mrp->in_link_status_work, mrp_in_link_status_expired);
+	ev_init(&mrp->cfm_ccm_work, mrp_cfm_ccm_expired);
 }

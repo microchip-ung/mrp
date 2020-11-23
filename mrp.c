@@ -13,6 +13,8 @@
 #include "linux.h"
 #include <linux/mrp_bridge.h>
 
+#include <linux/cfm_bridge.h>
+
 static void incomplete_command(void)
 {
 	fprintf(stderr, "Command line is not complete. Try option \"help\"\n");
@@ -86,6 +88,33 @@ static char *in_role_str(int in_role)
 	case BR_MRP_IN_ROLE_MIM: return "MIM";
 	default:
 		return "Unknown int role";
+	}
+}
+
+static int valid_in_mode(char *arg)
+{
+	if (strcmp(arg, "rc") == 0 ||
+	    strcmp(arg, "lc") == 0)
+		return 1;
+	return 0;
+}
+
+static enum mrp_in_mode_type in_mode_int(char *arg)
+{
+	if (strcmp(arg, "rc") == 0)
+		return MRP_IN_MODE_RC;
+	if (strcmp(arg, "lc") == 0)
+		return MRP_IN_MODE_LC;
+	return MRP_IN_MODE_RC;
+}
+
+static char *in_mode_str(int in_mode)
+{
+	switch (in_mode) {
+	case MRP_IN_MODE_RC: return "RC";
+	case MRP_IN_MODE_LC: return "LC";
+	default:
+		return "Unknown in mode";
 	}
 }
 
@@ -169,6 +198,28 @@ static char *mic_state_str(int mic_state)
 	default:
 		return "Unknwon mic_state";
 	}
+}
+
+static void cfm_dmac_get(char *argv, char *dmac)
+{
+	int values[ETH_ALEN];
+	int i;
+
+	sscanf(argv, "%x:%x:%x:%x:%x:%x%*c",
+	       &values[0], &values[1], &values[2],
+	       &values[3], &values[4], &values[5]);
+
+	for( i = 0; i < ETH_ALEN; ++i )
+		dmac[i] = (uint8_t) values[i];
+}
+
+static void cfm_maid_get(char *argv, char *maid)
+{
+	memset(maid, 0, CFM_MAID_LENGTH);
+	maid[0] = 1;
+	maid[1] = 2;
+	maid[3] = strlen(argv);
+	memcpy(&maid[3], argv, strlen(argv));
 }
 
 static int client_init(void)
@@ -302,7 +353,11 @@ static int cmd_addmrp(int argc, char *const *argv)
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
 	uint8_t react_on_link_change = 1;
 	int in_role = BR_MRP_IN_ROLE_DISABLED, iport = 0;
+	int in_mode = MRP_IN_MODE_RC;
 	uint16_t in_id = 0;
+	uint32_t cfm_level, cfm_mepid, cfm_peer_mepid, cfm_instance;
+	char cfm_dmac[ETH_ALEN];
+	char cfm_maid[CFM_MAID_LENGTH];
 
 	/* skip the command */
 	argv++;
@@ -351,6 +406,29 @@ static int cmd_addmrp(int argc, char *const *argv)
 		} else if (strcmp(*argv, "iport") == 0) {
 			NEXT_ARG();
 			iport = if_nametoindex(*argv);
+		} else if (strcmp(*argv, "in_mode") == 0) {
+			NEXT_ARG();
+			if (!valid_in_mode(*argv))
+				return -1;
+			in_mode = in_mode_int(*argv);
+		} else if (strcmp(*argv, "cfm_instance") == 0) {
+			NEXT_ARG();
+			cfm_instance = atoi(*argv);
+		} else if (strcmp(*argv, "cfm_level") == 0) {
+			NEXT_ARG();
+			cfm_level = atoi(*argv);
+		} else if (strcmp(*argv, "cfm_mepid") == 0) {
+			NEXT_ARG();
+			cfm_mepid = atoi(*argv);
+		} else if (strcmp(*argv, "cfm_maid") == 0) {
+			NEXT_ARG();
+			cfm_maid_get(*argv, cfm_maid);
+		} else if (strcmp(*argv, "cfm_peer_mepid") == 0) {
+			NEXT_ARG();
+			cfm_peer_mepid = atoi(*argv);
+		} else if (strcmp(*argv, "cfm_dmac") == 0) {
+			NEXT_ARG();
+			cfm_dmac_get(*argv, cfm_dmac);
 		}
 
 		argc--; argv++;
@@ -362,7 +440,8 @@ static int cmd_addmrp(int argc, char *const *argv)
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
 			  ring_recv, react_on_link_change, in_role,
-			  in_id, iport);
+			  in_id, iport, in_mode, cfm_instance, cfm_level,
+			  cfm_mepid, cfm_peer_mepid, cfm_maid, cfm_dmac);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -424,6 +503,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("iport: %s ", if_indextoname(status[i].iport, ifname));
 		printf("in_id: %d ", status[i].in_id);
 		printf("in_role: %s ", in_role_str(status[i].in_role));
+		printf("in_mode: %s ", in_mode_str(status[i].in_mode));
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIM)
 			printf("in_state: %s \n", mim_state_str(status[i].in_state));
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIC)
@@ -445,7 +525,8 @@ static const struct command commands[] =
 {
 	/* Add/delete bridges */
 	{"addmrp", cmd_addmrp,
-	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio> in_role <role> in_id <id> iport <iport>]", "Create MRP instance"},
+	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio> in_role <role> in_id <id> iport <iport> in_mode <imode>\n"
+	 "                cfm_instance <cfm_inst> cfm_level <cfm_level> cfm_mepid <cfm_mepid> cfm_peer_mepid <cfm_peer_mepid> cfm_maid <cfm_maid> cfm_dmac <cfm_dmac>", "Create MRP instance"},
 	{"delmrp", cmd_delmrp,
 	 "bridge <bridge> ring_nr <ring_nr>", "Delete MRP instance"},
 	{"getmrp", cmd_getmrp, "", "Show MRP instances"},

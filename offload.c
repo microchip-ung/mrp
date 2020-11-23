@@ -16,7 +16,7 @@
 #include "utils.h"
 #include "libnetlink.h"
 
-struct rtnl_handle rth = { .fd = -1 };
+static struct rtnl_handle rth = { .fd = -1 };
 
 static LIST_HEAD(mrp_rings);
 

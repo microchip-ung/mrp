@@ -11,6 +11,7 @@
 #include "server_cmds.h"
 #include "utils.h"
 #include "packet.h"
+#include "cfm_netlink.h"
 
 static LIST_HEAD(mrp_instances);
 
@@ -29,6 +30,19 @@ struct mrp_port *mrp_get_port(uint32_t ifindex)
 			return mrp->s_port;
 		if (mrp->i_port && mrp->i_port->ifindex == ifindex)
 			return mrp->i_port;
+	}
+
+	return NULL;
+}
+
+static struct mrp *mrp_get_mrp(uint32_t ifindex, uint32_t peer_mepid)
+{
+	struct mrp *mrp;
+
+	list_for_each_entry(mrp, &mrp_instances, list) {
+		if (mrp->ifindex == ifindex &&
+		    mrp->cfm_peer_mepid == peer_mepid)
+			return mrp;
 	}
 
 	return NULL;
@@ -269,8 +283,13 @@ static int mrp_set_mim_role(struct mrp *mrp)
 	mrp_set_mim_state(mrp, MRP_MIM_STATE_AC_STAT1);
 	mrp_port_offload_set_state(mrp->i_port, BR_MRP_PORT_STATE_BLOCKED);
 
-	if (mrp_is_port_up(mrp->i_port))
-		mrp_port_link_change(mrp->i_port, true);
+	if (mrp_is_port_up(mrp->i_port)) {
+		if (mrp->in_mode == MRP_IN_MODE_RC)
+			mrp_port_link_change(mrp->i_port, true);
+		else
+			mrp_cfm_link_change(mrp->ifindex, mrp->cfm_peer_mepid,
+					    false);
+	}
 
 	return 0;
 }
@@ -289,8 +308,13 @@ static int mrp_set_mic_role(struct mrp *mrp)
 	mrp_offload_set_in_role(mrp, BR_MRP_IN_ROLE_MIC);
 	mrp_port_offload_set_state(mrp->i_port, BR_MRP_PORT_STATE_BLOCKED);
 
-	if (mrp_is_port_up(mrp->i_port))
-		mrp_port_link_change(mrp->i_port, true);
+	if (mrp_is_port_up(mrp->i_port)) {
+		if (mrp->in_mode == MRP_IN_MODE_RC)
+			mrp_port_link_change(mrp->i_port, true);
+		else
+			mrp_cfm_link_change(mrp->ifindex, mrp->cfm_peer_mepid,
+					    false);
+	}
 
 	return 0;
 }
@@ -742,6 +766,55 @@ void mrp_in_link_req(struct mrp *mrp, bool up, uint32_t  interval)
 	mrp_send_in_link(mrp->p_port, up, interval);
 	mrp_send_in_link(mrp->s_port, up, interval);
 	mrp_send_in_link(mrp->i_port, up, interval);
+}
+
+/* Compose MRP_LinkStatusPoll frame and send the frame to the port p.
+ * The MRP_LinkStatusPoll frame has the following format:
+ * MRP_Version, MRP_TLVHeader, MRP_SA, MRP_IntId,  MRP_PortRole
+ */
+static void mrp_send_in_link_status(struct mrp_port *p)
+{
+	struct br_mrp_in_link_status_hdr *hdr = NULL;
+	struct frame_buf *fb = NULL;
+	struct mrp *mrp = p->mrp;
+	struct ethhdr *h = NULL;
+
+	fb = mrp_fb_alloc();
+	if (!fb)
+		return;
+
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_IN_LINK_STATUS, sizeof(*hdr));
+	hdr = fb_put(fb, sizeof(*hdr));
+
+	ether_addr_copy(hdr->sa, mrp->macaddr);
+	hdr->port_role = __cpu_to_be16(p->role);
+	hdr->id = __cpu_to_be16(mrp->in_id);
+
+	mrp_fb_common(fb, p);
+	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_END, 0x0);
+
+	h = mrp_eth_alloc(p->macaddr, mrp_icontrol_dmac);
+	if (!h)
+		goto out;
+
+	mrp_send(p, h, fb);
+
+	free(h);
+out:
+	free(fb->start);
+	free(fb);
+}
+
+/* Send MRP_IntLinkStatusPoll frames on MRP ring ports */
+void mrp_in_link_status_req(struct mrp *mrp, uint32_t interval)
+{
+	uint32_t delay = mrp->in_link_status_conf_interval;
+
+	mrp_send_in_link_status(mrp->p_port);
+	mrp_send_in_link_status(mrp->s_port);
+
+	if (interval)
+		mrp_in_link_status_start(mrp, delay);
 }
 
 /* Represents the state machine for when a MRP_Test frame was received on one
@@ -1270,6 +1343,43 @@ static void mrp_recv_in_link(struct mrp_port *p, unsigned char *buf)
 	}
 }
 
+/* Represents the state machine for when a MRP_IntLinkStatus frame was
+ * received on one of the MRP ports.
+ */
+static void mrp_recv_in_link_status(struct mrp_port *p, unsigned char *buf)
+{
+	struct br_mrp_in_link_status_hdr *hdr;
+	struct mrp *mrp = p->mrp;
+
+	if (mrp->in_role != BR_MRP_IN_ROLE_MIC)
+		return;
+
+	if (mrp->in_mode != MRP_IN_MODE_LC)
+		return;
+
+	printf("recv in_link_status, mic state: %s\n",
+	       mrp_get_mic_state(mrp->mic_state));
+
+	/* remove MRP version, tlv and get in link status header */
+	buf += sizeof(int16_t) + sizeof(struct br_mrp_tlv_hdr);
+	hdr = (struct br_mrp_in_link_status_hdr *)buf;
+
+	if (ntohs(hdr->id) != mrp->in_id)
+		return;
+
+	switch (mrp->mic_state) {
+	case MRP_MIC_STATE_AC_STAT1:
+		mrp_in_link_req(mrp, false, 0);
+		break;
+	case MRP_MIC_STATE_PT:
+		mrp_in_link_req(mrp, true, 0);
+		break;
+	case MRP_MIC_STATE_IP_IDLE:
+		mrp_in_link_req(mrp, true, 0);
+		break;
+	}
+}
+
 /* Check if the MRP frame needs to be dropped */
 static bool mrp_should_drop(const struct mrp_port *p,
 			    enum br_mrp_tlv_header_type type)
@@ -1380,6 +1490,9 @@ static void mrp_process(struct mrp_port *p, unsigned char *buf,
 	case BR_MRP_TLV_HEADER_IN_LINK_DOWN:
 	case BR_MRP_TLV_HEADER_IN_LINK_UP:
 		mrp_recv_in_link(p, buf);
+		break;
+	case BR_MRP_TLV_HEADER_IN_LINK_STATUS:
+		mrp_recv_in_link_status(p, buf);
 		break;
 	default:
 		printf("Unknown type: %d\n", type);
@@ -1676,7 +1789,7 @@ static void mrp_mim_port_link(struct mrp_port *p, bool up)
 	printf("up: %d, mim_state: %s\n",
 	       up, mrp_get_mim_state(mrp->mim_state));
 
-	if (up) {
+	if (up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mim_state) {
 		case MRP_MIM_STATE_AC_STAT1:
 			mrp_port_offload_set_state(mrp->i_port,
@@ -1695,7 +1808,7 @@ static void mrp_mim_port_link(struct mrp_port *p, bool up)
 		}
 	}
 
-	if (!up) {
+	if (!up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mim_state) {
 		case MRP_MIM_STATE_AC_STAT1:
 			/* Ignore */
@@ -1711,6 +1824,45 @@ static void mrp_mim_port_link(struct mrp_port *p, bool up)
 		}
 	}
 
+	if (up && mrp->in_mode == MRP_IN_MODE_LC) {
+		switch (mrp->mim_state) {
+		case MRP_MIM_STATE_AC_STAT1:
+			mrp->in_link_status_curr_max = mrp->in_link_status_conf_max;
+			mrp_port_offload_set_state(mrp->i_port,
+						   BR_MRP_PORT_STATE_BLOCKED);
+			mrp_in_link_status_req(mrp,
+					       mrp->in_link_status_conf_interval);
+			mrp_set_mim_state(mrp, MRP_MIM_STATE_CHK_IC);
+			break;
+		case MRP_MIM_STATE_CHK_IO:
+			/* Ignore */
+			break;
+		case MRP_MIM_STATE_CHK_IC:
+			/* Ignore */
+			break;
+		}
+	}
+
+	if (!up && mrp->in_mode == MRP_IN_MODE_LC) {
+		switch (mrp->mim_state) {
+		case MRP_MIM_STATE_AC_STAT1:
+			/* Ignore */
+			break;
+		case MRP_MIM_STATE_CHK_IO:
+			mrp_port_offload_set_state(mrp->i_port,
+						   BR_MRP_PORT_STATE_BLOCKED);
+			mrp_in_link_status_stop(mrp);
+			mrp_set_mim_state(mrp, MRP_MIM_STATE_AC_STAT1);
+			break;
+		case MRP_MIM_STATE_CHK_IC:
+			mrp_port_offload_set_state(mrp->i_port,
+						   BR_MRP_PORT_STATE_BLOCKED);
+			mrp_set_mim_state(mrp, MRP_MIM_STATE_AC_STAT1);
+			break;
+		}
+	}
+
+
 	printf("%s: new mim_state: %s\n", __func__,
 	       mrp_get_mim_state(mrp->mim_state));
 }
@@ -1725,7 +1877,7 @@ static void mrp_mic_port_link(struct mrp_port *p, bool up)
 	printf("up: %d, mic_state: %s\n",
 	       up, mrp_get_mic_state(mrp->mic_state));
 
-	if (up) {
+	if (up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mic_state) {
 		case MRP_MIC_STATE_AC_STAT1:
 			mrp->in_link_curr_max = mrp->in_link_conf_max;
@@ -1742,7 +1894,7 @@ static void mrp_mic_port_link(struct mrp_port *p, bool up)
 		}
 	}
 
-	if (!up) {
+	if (!up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mic_state) {
 		case MRP_MIC_STATE_AC_STAT1:
 			/* Ignore */
@@ -1769,6 +1921,45 @@ static void mrp_mic_port_link(struct mrp_port *p, bool up)
 		}
 	}
 
+	if (up && mrp->in_mode == MRP_IN_MODE_LC) {
+		switch (mrp->mic_state) {
+		case MRP_MIC_STATE_AC_STAT1:
+			mrp->in_link_curr_max = mrp->in_link_conf_max;
+			mrp_in_link_down_stop(mrp);
+			mrp_in_link_up_start(mrp, mrp->in_link_conf_interval);
+			mrp_in_link_req(mrp, up,
+					mrp->in_link_conf_max *
+					mrp->in_link_conf_interval);
+			mrp_set_mic_state(mrp, MRP_MIC_STATE_PT);
+			break;
+		case MRP_MIC_STATE_PT: /* Fallthrough */
+		case MRP_MIC_STATE_IP_IDLE:
+			/* Ignore */
+			break;
+		}
+	}
+
+	if (!up && mrp->in_mode == MRP_IN_MODE_LC) {
+		switch (mrp->mic_state) {
+		case MRP_MIC_STATE_AC_STAT1:
+			/* Ignore */
+			break;
+		case MRP_MIC_STATE_PT: /* Fallthrough */
+		case MRP_MIC_STATE_IP_IDLE:
+			mrp->in_link_curr_max = mrp->in_link_conf_max;
+			mrp_in_link_up_stop(mrp);
+			mrp_port_offload_set_state(mrp->i_port,
+						   BR_MRP_PORT_STATE_BLOCKED);
+			mrp_in_link_down_start(mrp,
+					       mrp->in_link_conf_interval);
+			mrp_in_link_req(mrp, up,
+					mrp->in_link_conf_max *
+					mrp->in_link_conf_interval);
+			mrp_set_mic_state(mrp, MRP_MIC_STATE_AC_STAT1);
+			break;
+		}
+	}
+
 	printf("%s: new mic_state: %s\n", __func__,
 	       mrp_get_mic_state(mrp->mic_state));
 }
@@ -1784,12 +1975,20 @@ void mrp_port_link_change(struct mrp_port *p, bool up)
 	if (!mrp_is_mrp_port(p))
 		return;
 
+	mrp = p->mrp;
+
+	/* If it is using CFM to notify when the link goes up/down on the
+	 * interconnect port then the function mrp_cfm_link_change sets the
+	 * correct port status
+	 */
+	if (mrp->in_mode == MRP_IN_MODE_LC &&
+	    mrp_is_in_port(p))
+		return;
+
 	if (up)
 		p->operstate = IF_OPER_UP;
 	else
 		p->operstate = IF_OPER_DOWN;
-
-	mrp = p->mrp;
 
 	if (mrp_is_ring_port(p)) {
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
@@ -1806,6 +2005,30 @@ void mrp_port_link_change(struct mrp_port *p, bool up)
 		if (mrp->in_role == BR_MRP_IN_ROLE_MIC)
 			return mrp_mic_port_link(p, up);
 	}
+}
+
+void mrp_cfm_link_change(uint32_t br_ifindex, uint32_t peer_mepid,
+			 uint32_t defect)
+{
+	struct mrp *mrp = NULL;
+
+	mrp = mrp_get_mrp(br_ifindex, peer_mepid);
+	if (!mrp)
+		return;
+
+	if (!mrp->i_port)
+		return;
+
+	if (!defect)
+		mrp->i_port->operstate = IF_OPER_UP;
+	else
+		mrp->i_port->operstate = IF_OPER_DOWN;
+
+	if (mrp->in_role == BR_MRP_IN_ROLE_MIM)
+		mrp_mim_port_link(mrp->i_port, !defect);
+
+	if (mrp->in_role == BR_MRP_IN_ROLE_MIC)
+		mrp_mic_port_link(mrp->i_port, !defect);
 }
 
 void mrp_mac_change(uint32_t ifindex, unsigned char *mac)
@@ -1908,6 +2131,10 @@ static void mrp_update_recovery(struct mrp *mrp,
 		mrp->in_link_conf_interval = 20 * 1000;
 		mrp->in_link_conf_max = 4;
 		mrp->in_link_curr_max = 0;
+		mrp->in_link_status_conf_interval = 20 * 1000;
+		mrp->in_link_status_conf_max = 8;
+		mrp->in_link_status_curr_max = 0;
+		mrp->cfm_ccm_period = 10000 * 1000;
 		break;
 	case MRP_IN_RECOVERY_200:
 		mrp->in_topo_conf_interval = 10 * 1000;
@@ -1920,6 +2147,10 @@ static void mrp_update_recovery(struct mrp *mrp,
 		mrp->in_link_conf_interval = 20 * 1000;
 		mrp->in_link_conf_max = 4;
 		mrp->in_link_curr_max = 0;
+		mrp->in_link_status_conf_interval = 20 * 1000;
+		mrp->in_link_status_conf_max = 8;
+		mrp->in_link_status_curr_max = 0;
+		mrp->cfm_ccm_period = 10000 * 1000;
 		break;
 	default:
 		break;
@@ -2038,6 +2269,9 @@ void mrp_port_in_open(struct mrp_port *p, bool loc)
 
 	pthread_mutex_lock(&mrp->lock);
 
+	if (mrp->in_mode != MRP_IN_MODE_RC)
+		goto out;
+
 	if (p->in_loc == loc)
 		goto out;
 
@@ -2099,6 +2333,11 @@ static int mrp_create(uint32_t br_ifindex, uint32_t ring_nr, uint16_t in_id)
 	return 0;
 }
 
+static void mrp_delete_cfm(struct mrp *mrp)
+{
+	cfm_offload_mep_delete(mrp->ifindex, mrp->cfm_instance);
+}
+
 /* Uninitialize MRP instance and remove it */
 void mrp_destroy(uint32_t br_ifindex, uint32_t ring_nr, bool offload)
 {
@@ -2110,6 +2349,9 @@ void mrp_destroy(uint32_t br_ifindex, uint32_t ring_nr, bool offload)
 	pthread_mutex_lock(&mrp->lock);
 
 	mrp_reset_ring_state(mrp);
+
+	if (mrp->in_mode == MRP_IN_MODE_LC)
+		mrp_delete_cfm(mrp);
 
 	if (offload)
 		mrp_offload_del(mrp);
@@ -2158,6 +2400,7 @@ int mrp_get(int *count, struct mrp_status *status)
 			status[i].iport = mrp->i_port->ifindex;
 		status[i].in_id = mrp->in_id;
 		status[i].in_role = mrp->in_role;
+		status[i].in_mode = mrp->in_mode;
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIM)
 			status[i].in_state = mrp->mim_state;
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIC)
@@ -2175,10 +2418,49 @@ int mrp_get(int *count, struct mrp_status *status)
 	return 0;
 }
 
+static void mrp_start_cfm(struct mrp *mrp, uint32_t cfm_instance,
+			  uint32_t cfm_level, uint32_t cfm_mepid,
+			  uint32_t cfm_peer_mepid, char *cfm_maid,
+			  char *cfm_dmac)
+{
+	struct mac_addr smac;
+	struct mac_addr dmac;
+	struct maid_data maid;
+
+	mrp->cfm_mepid = cfm_mepid;
+	mrp->cfm_peer_mepid = cfm_peer_mepid;
+	mrp->cfm_instance = cfm_instance;
+
+	memcpy(smac.addr, mrp->i_port->macaddr, ETH_ALEN);
+	memcpy(dmac.addr, cfm_dmac, ETH_ALEN);
+	memcpy(mrp->cfm_ccm_dmac, cfm_dmac, ETH_ALEN);
+
+	memset(maid.data, 0, sizeof(maid));
+	memcpy(maid.data, cfm_maid, strlen(cfm_maid));
+
+	cfm_offload_mep_create(mrp->ifindex, mrp->cfm_instance,
+			       BR_CFM_PORT, BR_CFM_MEP_DIRECTION_DOWN,
+			       mrp->i_port->ifindex);
+	cfm_offload_mep_config(mrp->ifindex, mrp->cfm_instance,
+			       &smac, cfm_level, cfm_mepid);
+	cfm_offload_cc_config(mrp->ifindex, mrp->cfm_instance, 1,
+			      BR_CFM_CCM_INTERVAL_3_3_MS, &maid);
+	cfm_offload_cc_peer(mrp->ifindex, mrp->cfm_instance, 0,
+			    cfm_peer_mepid);
+
+	/* Start the transmision of the frames */
+	cfm_offload_cc_ccm_tx(mrp->ifindex, mrp->cfm_instance, &dmac, 1,
+			      mrp->cfm_ccm_period, 1, 100, 1, 200);
+	mrp_cfm_ccm_start(mrp, mrp->cfm_ccm_period);
+}
+
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio,
 	    uint8_t ring_recv, uint8_t react_on_link_change,
-	    uint32_t in_role, uint16_t in_id, uint32_t iport)
+	    uint32_t in_role, uint16_t in_id, uint32_t iport,
+	    uint32_t in_mode, uint32_t cfm_instance, uint32_t cfm_level,
+	    uint32_t cfm_mepid, uint32_t cfm_peer_mepid, char *cfm_maid,
+	    char *cfm_dmac)
 {
 	struct mrp *mrp;
 	int err;
@@ -2201,6 +2483,8 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	mrp->prio = prio;
 	mrp_update_recovery(mrp, ring_recv, MRP_IN_RECOVERY_500);
 	mrp->react_on_link_change = react_on_link_change;
+	mrp->in_mode = in_mode;
+
 	if_get_mac(mrp->ifindex, mrp->macaddr);
 
 	/* Initialize the ports */
@@ -2221,6 +2505,10 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 		pthread_mutex_unlock(&mrp->lock);
 		goto delete_ports;
 	}
+
+	if (mrp->in_mode != MRP_IN_MODE_RC)
+		mrp_start_cfm(mrp, cfm_instance, cfm_level, cfm_mepid,
+			      cfm_peer_mepid, cfm_maid, cfm_dmac);
 
 	if (ring_role == BR_MRP_RING_ROLE_MRM)
 		err = mrp_set_mrm_role(mrp);

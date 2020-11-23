@@ -56,6 +56,7 @@ struct mrp {
 	enum br_mrp_ring_role_type	ring_role;
 	enum mrp_ring_recovery_type	ring_recv;
 	enum br_mrp_in_role_type	in_role;
+	enum mrp_in_mode_type		in_mode;
 	enum mrp_in_recovery_type	in_recv;
 
 	enum mrp_mrm_state_type		mrm_state;
@@ -120,8 +121,21 @@ struct mrp {
 	uint32_t			in_link_conf_max;
 	uint32_t			in_link_curr_max;
 
+	ev_timer			in_link_status_work;
+	uint32_t			in_link_status_conf_interval;
+	uint32_t			in_link_status_conf_max;
+	uint32_t			in_link_status_curr_max;
+
 	uint32_t			blocked;
 	uint32_t			react_on_link_change;
+
+	/* CFM configuration - Used only in LC mode */
+	ev_timer			cfm_ccm_work;
+	uint32_t			cfm_ccm_period;
+	uint32_t			cfm_instance;
+	uint32_t			cfm_mepid;
+	uint32_t			cfm_peer_mepid;
+	uint8_t				cfm_ccm_dmac[ETH_ALEN];
 };
 
 int mrp_recv(unsigned char *buf, int buf_len, struct sockaddr_ll *sl,
@@ -131,12 +145,17 @@ void mrp_destroy(uint32_t ifindex, uint32_t ring_nr, bool offload);
 void mrp_mac_change(uint32_t ifindex, unsigned char *mac);
 void mrp_port_ring_open(struct mrp_port *p, bool loc);
 void mrp_port_in_open(struct mrp_port *p, bool loc);
+void mrp_cfm_link_change(uint32_t br_ifindex, uint32_t peer_mepid,
+			 uint32_t defect);
 
 int mrp_get(int *count, struct mrp_status *status);
 int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio,
 	    uint8_t ring_recv, uint8_t react_on_link_change,
-	    uint32_t in_role, uint16_t in_id, uint32_t iport);
+	    uint32_t in_role, uint16_t in_id, uint32_t iport,
+	    uint32_t in_mode, uint32_t cfm_instance,
+	    uint32_t cfm_level, uint32_t cfm_mepid,
+	    uint32_t cfm_peer_mepid, char *cfm_maid, char *cfm_dmac);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);
 void mrp_uninit(void);
 
@@ -155,6 +174,7 @@ void mrp_in_test_req(struct mrp *mrp, uint32_t interval);
 void mrp_in_topo_req(struct mrp *mrp, uint32_t interval);
 void mrp_in_topo_send(struct mrp *mrp, uint32_t interval);
 void mrp_in_link_req(struct mrp *mrp, bool up, uint32_t interval);
+void mrp_in_link_status_req(struct mrp *mrp, uint32_t interval);
 
 void mrp_set_mrm_state(struct mrp *mrp, enum mrp_mrm_state_type state);
 void mrp_set_mrc_state(struct mrp *mrp, enum mrp_mrc_state_type state);
@@ -189,6 +209,11 @@ void mrp_in_link_up_start(struct mrp *mrp, uint32_t interval);
 void mrp_in_link_up_stop(struct mrp *mrp);
 void mrp_in_link_down_start(struct mrp *mrp, uint32_t interval);
 void mrp_in_link_down_stop(struct mrp *mrp);
+void mrp_in_link_status_start(struct mrp *mrp, uint32_t interval);
+void mrp_in_link_status_stop(struct mrp *mrp);
+
+void mrp_cfm_ccm_start(struct mrp *mrp, uint32_t interval);
+void mrp_cfm_ccm_stop(struct mrp *mrp);
 
 /* mrp_offload.c */
 int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
