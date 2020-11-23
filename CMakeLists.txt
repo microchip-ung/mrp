@@ -46,16 +46,22 @@ if (NOT (LibEV_INCLUDE_DIR AND LibEV_LIBRARY))
     message(FATAL_ERROR "Could not find libev.")
 endif ()
 
+## libcfm_netlink ########################################
+find_path(LibCFM_INCLUDE_DIR cfm_netlink.h
+    ./
+)
+
+find_library(LibCFM_LIBRARY NAMES cfm_netlink HINTS ./)
 ## mrp (this project) ####################################
 add_definitions(-Wall)
 
-include_directories(${LibNL_INCLUDE_DIR} ${LibEV_INCLUDE_DIR} ${LibMNL_INCLUDE_DIR} include/uapi)
+include_directories(${LibNL_INCLUDE_DIR} ${LibEV_INCLUDE_DIR} ${LibMNL_INCLUDE_DIR} ${LibCFM_INCLUDE_DIR}  include/uapi)
 
 add_executable(mrp mrp.c)
 
 add_executable(mrp_server mrp_server.c packet.c server_socket.c server_cmds.c state_machine.c offload.c timer.c libnetlink.c utils.c)
 target_link_libraries(mrp_server ${LibNL_LIBRARY} ${LibNL_GENL_LIBRARY}
-    ${LibEV_LIBRARY} ${LibMNL_LIBRARY})
+    ${LibEV_LIBRARY} ${LibMNL_LIBRARY} ${LibCFM_LIBRARY})
 
 install(TARGETS mrp_server mrp RUNTIME DESTINATION bin)
 
