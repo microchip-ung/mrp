@@ -48,10 +48,14 @@ endif ()
 
 ## libcfm_netlink ########################################
 find_path(LibCFM_INCLUDE_DIR cfm_netlink.h
-    ./
+    /usr/include
+    /usr/local/include
 )
 
-find_library(LibCFM_LIBRARY NAMES cfm_netlink HINTS ./)
+find_library(LibCFM_LIBRARY NAMES cfm_netlink)
+if (NOT (LibCFM_INCLUDE_DIR AND LibCFM_LIBRARY))
+    message(FATAL_ERROR "Could not find libcfm_netlink.")
+endif ()
 ## mrp (this project) ####################################
 add_definitions(-Wall)
 
