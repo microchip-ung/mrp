@@ -355,7 +355,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 	int in_role = BR_MRP_IN_ROLE_DISABLED, iport = 0;
 	int in_mode = MRP_IN_MODE_RC;
 	uint16_t in_id = 0;
-	uint32_t cfm_level, cfm_mepid, cfm_peer_mepid, cfm_instance;
+	uint32_t cfm_level = 0, cfm_mepid = 0, cfm_peer_mepid = 0, cfm_instance = 0;
 	char cfm_dmac[ETH_ALEN];
 	char cfm_maid[CFM_MAID_LENGTH];
 
