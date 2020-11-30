@@ -28,7 +28,9 @@ network to clear the FDB.
 
 ## Depedencies
 
-It depens on the following libs Linux 5.8, 'libnl', 'libev' and 'libmnl'
+It depens on the following libs Linux 5.8, 'libnl', 'libev', 'libmnl' and
+'libcfm'.
+CFM can be found here: https://github.com/microchip-ung/cfm
 
 ## Build
 
