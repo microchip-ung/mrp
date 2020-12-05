@@ -1,17 +1,20 @@
 # Media Redundancy Protocol(MRP)
 
 This application is used to configure the kernel via netlink interface to
-offload to HW the transmition of MRP_Test frames and the detection when the ring
-becomes open or closed.
+offload to HW the transmition of MRP_Test frames and MRP_InTest frames, forward
+all MRP frames and the detection when the ring becomes open or closed.
 
 ## MRP
 
 This is the first proposal of implementing a subset of the standard. It supports
-only 3 roles of an MRP node. It supports Media Redundancy Manager(MRM), Media
-Redundancy Client(MRC) and Media Redundancy Auto-Manager(MRA) In a MRP ring,
-each node needs to support MRP and in a ring can be only one MRM and multiple
-MRC. It is possible to have multiple instances of MRP on a single node. But a
-port can be part of only one MRP instance.
+the followin roles:  Media Redundancy Manager(MRM), Media Redundancy
+Client(MRC), Media Redundancy Auto-Manager(MRA), Media Redundancy
+Interconnection Manager(MIM) and Media Redundancy Interconnection Client(MIC).
+In a MRP ring, each node needs to support MRP and in a ring can be only one MRM
+and multiple MRC. It is possible to have multiple instances of MRP on a single
+node. But a port can be part of only one MRP instance. In an Interconnect MRP
+ring, there are only 4 nodes where one node is MIM and the other 3 nodes are
+MIC.
 
 The MRM is responsible for detecting when there is a loop in the ring. It is
 sending the frame MRP_Test to detect the loops. It would send MRP_Test on both
@@ -22,14 +25,23 @@ stops receiving MRP_Test frames from itself then the MRM will detect that the
 ring is open, therefor it would notify the other nodes of this change and will
 set the state of the port to be FORWARDING.
 
+Similar with the MRP ring, in the interconnect ring, MIM sends MRP_InTest frames
+on all 3 ports and expects to receive at least on one port the MRP_InTest
+frames. The MIM can operate in a different mode where it sends CFM frames on the
+interconnect port.
+
 The MRC is responsible for forwarding MRP_Test frames between the ring ports
 (and not to flood on other ports) and to listen when there is a change in the
 network to clear the FDB.
 
-## Depedencies
+The MIM is responsible for forwarding MRP_Test frames between ring ports and
+MRP_InTest frames between all ports.
 
-It depens on the following libs Linux 5.8, 'libnl', 'libev', 'libmnl' and
+## Dependencies
+
+It depends on the following libs Linux 5.8, 'libnl', 'libev', 'libmnl' and
 'libcfm'.
+
 CFM can be found here: https://github.com/microchip-ung/cfm
 
 ## Build
@@ -96,6 +108,22 @@ instance number:
 mrp delmrp bridge br0 ring_nr 1
 bridge: br0 ring_nr: 2 pport: eth2 sport: eth3 ring_role: MRM ring_state: CHK_RC
 ```
+
+To create a node that has also an interconnect role:
+```bash
+mrp addmrp bridge br0 ring_nr 3 pport eth0 ssport eth1 ring_role mrc in_role mim in_id 1 iport eth3
+```
+
+By default interconnect mode is RC mode. All the nodes in the interconnect ring
+needs to operate in the same mode. To create a node with LC mode:
+```bash
+mrp addmrp bridge br0 ring_nr 3 pport eth0 ssport eth1 ring_role mrc in_role mim
+in_id 1 iport eth3 in_mode lc cfm_instance 1 cfm_level 7 cfm_mepid 2
+cfm_peer_mepid 1 cfm_dmac 00:00:00:00:00:02 cfm_maid ABCD
+```
+
+For mode details on how to configure CFM:
+https://github.com/microchip-ung/cfm
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to
