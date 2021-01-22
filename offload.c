@@ -221,9 +221,9 @@ int mrp_offload_del(struct mrp *mrp)
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_INSTANCE_RING_ID,
 		  mrp->ring_nr);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_INSTANCE_P_IFINDEX,
-		  mrp->p_port->ifindex);
+		  mrp->p_port ? mrp->p_port->ifindex : 0);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_INSTANCE_S_IFINDEX,
-		  mrp->s_port->ifindex);
+		  mrp->s_port ? mrp->s_port->ifindex : 0);
 
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }

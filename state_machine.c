@@ -193,7 +193,9 @@ static int mrp_set_mra_role(struct mrp *mrp)
 
 	mrp_port_offload_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_offload_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
-	mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+	err = mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+	if (err)
+		return err;
 
 	if (mrp_is_port_up(mrp->p_port))
 		mrp_port_link_change(mrp->p_port, true);
@@ -226,7 +228,9 @@ static int mrp_set_mrm_role(struct mrp *mrp)
 
 	mrp_port_offload_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_offload_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
-	mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+	err = mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
+	if (err)
+		return err;
 
 	if (mrp_is_port_up(mrp->p_port))
 		mrp_port_link_change(mrp->p_port, true);
@@ -259,7 +263,9 @@ static int mrp_set_mrc_role(struct mrp *mrp)
 
 	mrp_port_offload_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_offload_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
-	mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRC);
+	err = mrp_offload_set_ring_role(mrp, BR_MRP_RING_ROLE_MRC);
+	if (err)
+		return err;
 
 	if (mrp_is_port_up(mrp->p_port))
 		mrp_port_link_change(mrp->p_port, true);
@@ -272,6 +278,8 @@ static int mrp_set_mrc_role(struct mrp *mrp)
 
 static int mrp_set_mim_role(struct mrp *mrp)
 {
+	int err;
+
 	if (!mrp->i_port)
 		return -EINVAL;
 
@@ -279,7 +287,9 @@ static int mrp_set_mim_role(struct mrp *mrp)
 	mrp->mim_state = MRP_MIM_STATE_AC_STAT1;
 	mrp->mic_state = MRP_MIC_STATE_AC_STAT1;
 
-	mrp_offload_set_in_role(mrp, BR_MRP_IN_ROLE_MIM);
+	err = mrp_offload_set_in_role(mrp, BR_MRP_IN_ROLE_MIM);
+	if (err)
+		return err;
 
 	mrp_set_mim_state(mrp, MRP_MIM_STATE_AC_STAT1);
 	mrp_port_offload_set_state(mrp->i_port, BR_MRP_PORT_STATE_BLOCKED);
@@ -297,6 +307,8 @@ static int mrp_set_mim_role(struct mrp *mrp)
 
 static int mrp_set_mic_role(struct mrp *mrp)
 {
+	int err;
+
 	if (!mrp->i_port)
 		return -EINVAL;
 
@@ -306,7 +318,10 @@ static int mrp_set_mic_role(struct mrp *mrp)
 
 	mrp_set_mic_state(mrp, MRP_MIC_STATE_AC_STAT1);
 
-	mrp_offload_set_in_role(mrp, BR_MRP_IN_ROLE_MIC);
+	err = mrp_offload_set_in_role(mrp, BR_MRP_IN_ROLE_MIC);
+	if (err)
+		return err;
+
 	mrp_port_offload_set_state(mrp->i_port, BR_MRP_PORT_STATE_BLOCKED);
 
 	if (mrp_is_port_up(mrp->i_port)) {
@@ -2542,7 +2557,7 @@ delete_port:
 	mrp->p_port = NULL;
 
 delete_mrp:
-	mrp_destroy(br_ifindex, ring_nr, false);
+	mrp_destroy(br_ifindex, ring_nr, true);
 	return err;
 }
 
