@@ -11,6 +11,7 @@
 
 #include "utils.h"
 #include "linux.h"
+#include "pdu.h"
 #include <linux/mrp_bridge.h>
 
 #include <linux/cfm_bridge.h>
