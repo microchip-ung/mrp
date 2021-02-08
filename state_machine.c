@@ -1627,6 +1627,8 @@ static void mrp_mrm_port_link(struct mrp_port *p, bool up)
 			mrp->ring_test_curr = 0;
 			mrp->no_tc = true;
 			mrp_ring_test_req(mrp, mrp->ring_test_conf_interval);
+			mrp->p_port->loc = 0;
+			mrp->s_port->loc = 0;
 			mrp_set_mrm_state(mrp, MRP_MRM_STATE_CHK_RC);
 		}
 		break;
