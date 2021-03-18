@@ -16,25 +16,25 @@ volatile bool quit = false;
 
 static void handle_signal(int sig)
 {
-    ev_break(EV_DEFAULT, EVBREAK_ALL);;
+	ev_break(EV_DEFAULT, EVBREAK_ALL);;
 }
 
 int signal_init(void)
 {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = handle_signal;
-    sa.sa_flags = 0;
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = handle_signal;
+	sa.sa_flags = 0;
 
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGHUP, &sa, NULL);
-    sigaction(SIGUSR2, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+	sigaction(SIGUSR2, &sa, NULL);
 
-    sa.sa_handler = SIG_IGN;
-    sigaction(SIGPIPE, &sa, NULL);
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL);
 
-    return 0;
+	return 0;
 }
 
 int main (void)
