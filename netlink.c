@@ -140,7 +140,7 @@ static int get_bridges(struct nlmsghdr *n, void *arg)
 	return 0;
 }
 
-static int mrp_offload_clear(void)
+static int mrp_netlink_clear(void)
 {
 	struct mrp_ring *mrp_ring;
 	int err;
@@ -174,23 +174,23 @@ static int mrp_offload_clear(void)
 	return 0;
 }
 
-int mrp_offload_init(void)
+int mrp_netlink_init(void)
 {
 	if (rtnl_open(&rth, 0) < 0) {
 		fprintf(stderr, "Cannot open rtnetlink\n");
 		return EXIT_FAILURE;
 	}
 
-	mrp_offload_clear();
+	mrp_netlink_clear();
 	return 0;
 }
 
-void mrp_offload_uninit(void)
+void mrp_netlink_uninit(void)
 {
 	rtnl_close(&rth);
 }
 
-int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
+int mrp_netlink_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
 		    uint16_t prio)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -210,7 +210,7 @@ int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_del(struct mrp *mrp)
+int mrp_netlink_del(struct mrp *mrp)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
 	struct request req = { 0 };
@@ -228,7 +228,7 @@ int mrp_offload_del(struct mrp *mrp)
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_port_offload_set_state(struct mrp_port *p,
+int mrp_port_netlink_set_state(struct mrp_port *p,
 			       enum br_mrp_port_state_type state)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -244,7 +244,7 @@ int mrp_port_offload_set_state(struct mrp_port *p,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_port_offload_set_role(struct mrp_port *p,
+int mrp_port_netlink_set_role(struct mrp_port *p,
 			      enum br_mrp_port_role_type role)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -260,7 +260,7 @@ int mrp_port_offload_set_role(struct mrp_port *p,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_set_ring_state(struct mrp *mrp,
+int mrp_netlink_set_ring_state(struct mrp *mrp,
 			       enum br_mrp_ring_state_type state)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -277,7 +277,7 @@ int mrp_offload_set_ring_state(struct mrp *mrp,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role)
+int mrp_netlink_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
 	struct request req = { 0 };
@@ -298,7 +298,7 @@ int mrp_offload_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role)
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
+int mrp_netlink_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 			       uint32_t period)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -321,7 +321,7 @@ int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_set_in_state(struct mrp *mrp,
+int mrp_netlink_set_in_state(struct mrp *mrp,
 			     enum br_mrp_in_state_type state)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -338,7 +338,7 @@ int mrp_offload_set_in_state(struct mrp *mrp,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role)
+int mrp_netlink_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
 	struct request req = { 0 };
@@ -360,7 +360,7 @@ int mrp_offload_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role)
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
+int mrp_netlink_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 			      uint32_t period)
 {
 	struct rtattr *afspec, *afmrp, *af_submrp;
@@ -381,7 +381,7 @@ int mrp_offload_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
 
-int mrp_offload_flush(struct mrp *mrp)
+int mrp_netlink_flush(struct mrp *mrp)
 {
 	struct request req = { 0 };
 	struct rtattr *protinfo;

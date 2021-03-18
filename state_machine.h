@@ -215,27 +215,27 @@ void mrp_in_link_status_stop(struct mrp *mrp);
 void mrp_cfm_ccm_start(struct mrp *mrp, uint32_t interval);
 void mrp_cfm_ccm_stop(struct mrp *mrp);
 
-/* mrp_offload.c */
-int mrp_offload_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
+/* netlink.c */
+int mrp_netlink_add(struct mrp *mrp, struct mrp_port *p, struct mrp_port *s,
 		    uint16_t prio);
-int mrp_offload_del(struct mrp *mrp);
-int mrp_port_offload_set_state(struct mrp_port *p,
+int mrp_netlink_del(struct mrp *mrp);
+int mrp_port_netlink_set_state(struct mrp_port *p,
 			       enum br_mrp_port_state_type state);
-int mrp_port_offload_set_role(struct mrp_port *p,
+int mrp_port_netlink_set_role(struct mrp_port *p,
 			      enum br_mrp_port_role_type role);
 
-int mrp_offload_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role);
-int mrp_offload_set_ring_state(struct mrp *mrp,
+int mrp_netlink_set_ring_role(struct mrp *mrp, enum br_mrp_ring_role_type role);
+int mrp_netlink_set_ring_state(struct mrp *mrp,
 			       enum br_mrp_ring_state_type state);
-int mrp_offload_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
+int mrp_netlink_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 			       uint32_t period);
 
-int mrp_offload_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role);
-int mrp_offload_set_in_state(struct mrp *mrp, enum br_mrp_in_state_type state);
-int mrp_offload_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
+int mrp_netlink_set_in_role(struct mrp *mrp, enum br_mrp_in_role_type role);
+int mrp_netlink_set_in_state(struct mrp *mrp, enum br_mrp_in_state_type state);
+int mrp_netlink_send_in_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 			     uint32_t period);
 
-int mrp_offload_flush(struct mrp *mrp);
+int mrp_netlink_flush(struct mrp *mrp);
 
 #endif /* STATE_MACHINE_H */
 

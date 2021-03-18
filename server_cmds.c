@@ -20,7 +20,7 @@
 #include "server_cmds.h"
 #include "state_machine.h"
 #include "list.h"
-#include "offload.h"
+#include "netlink.h"
 #include "cfm_netlink.h"
 
 static struct rtnl_handle rth;
@@ -205,8 +205,8 @@ int CTL_init(void)
 		return -1;
 	}
 
-	if (mrp_offload_init()) {
-		printf("mrp offload init failed\n");
+	if (mrp_netlink_init()) {
+		printf("mrp netlink init failed\n");
 		return -1;
 	}
 
@@ -220,7 +220,7 @@ int CTL_init(void)
 
 void CTL_cleanup(void)
 {
-	mrp_offload_uninit();
+	mrp_netlink_uninit();
 	netlink_uninit();
 	mrp_uninit();
 }
