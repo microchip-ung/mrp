@@ -18,7 +18,7 @@
 
 static void incomplete_command(void)
 {
-	fprintf(stderr, "Command line is not complete. Try option \"help\"\n");
+	printf("Command line is not complete. Try option \"help\"\n");
 	exit(-1);
 }
 
@@ -231,7 +231,7 @@ static int client_init(void)
 	int s;
 
 	if (0 > (s = socket(PF_UNIX, SOCK_DGRAM, 0))) {
-		fprintf(stderr, "Couldn't open unix socket: %m");
+		printf("Couldn't open unix socket: %m");
 		return -1;
 	}
 
@@ -244,13 +244,13 @@ static int client_init(void)
 	 * The server doesn't get a proper sockaddr in recvmsg if we don't do this.
 	 */
 	if (0 != bind(s, (struct sockaddr *)&sa, sizeof(sa))) {
-	    fprintf(stderr, "Couldn't bind socket: %m");
+	    printf("Couldn't bind socket: %m");
 	    close(s);
 	    return -1;
 	}
 
 	if (0 != connect(s, (struct sockaddr *)&sa_svr, sizeof(sa_svr))) {
-	    fprintf(stderr, "Couldn't connect to server");
+	    printf("Couldn't connect to server");
 	    close(s);
 	    return -1;
 	}
@@ -295,12 +295,12 @@ static int client_send_message(int cmd, void *inbuf, int lin, void *outbuf,
 
 	l = sendmsg(fd, &msg, 0);
 	if(0 > l) {
-		fprintf(stderr, "Error sending message to server: %m");
+		printf("Error sending message to server: %m");
 		return -1;
 	}
 
 	if(l != sizeof(mhdr) + lin) {
-		fprintf(stderr, "Error sending message to server: Partial write");
+		printf("Error sending message to server: Partial write");
 		return -1;
 	}
 
@@ -311,30 +311,30 @@ static int client_send_message(int cmd, void *inbuf, int lin, void *outbuf,
 	pfd.events = POLLIN;
 	do {
 		if (0 == (r = poll(&pfd, 1, timeout))) {
-			fprintf(stderr, "Error getting message from server: Timeout");
+			printf("Error getting message from server: Timeout");
 			return -1;
 		}
 		if (0 > r) {
-			fprintf(stderr, "Error getting message from server: poll error: %m");
+			printf("Error getting message from server: poll error: %m");
 			return -1;
 		}
 	} while(0 == (pfd.revents & (POLLERR | POLLHUP | POLLNVAL | POLLIN)));
 
 	l = recvmsg(fd, &msg, 0);
 	if (0 > l) {
-		fprintf(stderr, "Error getting message from server: %m");
+		printf("Error getting message from server: %m");
 		return -1;
 	}
 
 	if ((sizeof(mhdr) > l) || (l != sizeof(mhdr) + mhdr.lout)
 	   || (mhdr.cmd != cmd)) {
-		fprintf(stderr, "Error getting message from server: Bad format");
+		printf("Error getting message from server: Bad format");
 		return -1;
 	}
 
 	if (mhdr.lout != lout) {
-		fprintf(stderr, "Error, unexpected result length %d, expected %d\n",
-		      mhdr.lout, lout);
+		printf("Error, unexpected result length %d, expected %d\n",
+		       mhdr.lout, lout);
 		return -1;
 	}
 
@@ -571,8 +571,9 @@ static const struct command *command_lookup_and_validate(int argc,
 	cmd = command_lookup(argv[0]);
 	if (!cmd) {
 		if (line_num > 0)
-			fprintf(stderr, "Error on line %d:\n", line_num);
-		fprintf(stderr, "Unknown command [%s]\n", argv[0]);
+			printf("Error on line %d:\n", line_num);
+
+		printf("Unknown command [%s]\n", argv[0]);
 		if (line_num == 0) {
 			help();
 			return NULL;
@@ -603,7 +604,7 @@ int main (int argc, char *const *argv)
 	}
 
 	if (client_init()) {
-		fprintf(stderr, "can't setup control connection\n");
+		printf("can't setup control connection\n");
 		return 1;
 	}
 
