@@ -22,6 +22,7 @@
 #include "list.h"
 #include "netlink.h"
 #include "cfm_netlink.h"
+#include "print.h"
 
 static struct rtnl_handle rth;
 static ev_io netlink_watcher;
@@ -81,7 +82,7 @@ static int netlink_listen(struct rtnl_ctrl_data *who, struct nlmsghdr *n,
 	parse_rtattr_flags(tb, IFLA_MAX, IFLA_RTA(ifi), len, NLA_F_NESTED);
 
 	if (tb[IFLA_IFNAME] == NULL) {
-		printf("BUG: nil ifname\n");
+		pr_err("BUG: nil ifname");
 		return -1;
 	}
 
@@ -196,22 +197,22 @@ static void netlink_uninit(void)
 int CTL_init(void)
 {
 	if (netlink_init()) {
-		printf("netlink init failed!\n");
+		pr_err("netlink init failed!");
 		return -1;
 	}
 
 	if (if_init()) {
-		printf("if init failed\n");
+		pr_err("if init failed");
 		return -1;
 	}
 
 	if (mrp_netlink_init()) {
-		printf("mrp netlink init failed\n");
+		pr_err("mrp netlink init failed");
 		return -1;
 	}
 
 	if (cfm_offload_init()) {
-		printf("cfm offload init failed\n");
+		pr_err("cfm offload init failed");
 		return -1;
 	}
 

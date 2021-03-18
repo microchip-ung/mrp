@@ -63,7 +63,7 @@ include_directories(${LibNL_INCLUDE_DIR} ${LibEV_INCLUDE_DIR} ${LibMNL_INCLUDE_D
 
 add_executable(mrp mrp.c)
 
-add_executable(mrp_server mrp_server.c packet.c server_socket.c server_cmds.c state_machine.c netlink.c timer.c libnetlink.c utils.c)
+add_executable(mrp_server mrp_server.c packet.c server_socket.c server_cmds.c state_machine.c netlink.c timer.c libnetlink.c utils.c print.c)
 target_link_libraries(mrp_server ${LibNL_LIBRARY} ${LibNL_GENL_LIBRARY}
     ${LibEV_LIBRARY} ${LibMNL_LIBRARY} ${LibCFM_LIBRARY})
 

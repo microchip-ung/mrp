@@ -13,6 +13,7 @@
 #include "packet.h"
 #include "pdu.h"
 #include "cfm_netlink.h"
+#include "print.h"
 
 static LIST_HEAD(mrp_instances);
 
@@ -139,7 +140,7 @@ void mrp_set_mrc_init(struct mrp *mrp)
 
 void mrp_set_mrm_state(struct mrp *mrp, enum mrp_mrm_state_type state)
 {
-	printf("mrm_state: %s\n", mrp_get_mrm_state(state));
+	pr_info("mrm_state: %s", mrp_get_mrm_state(state));
 	mrp->mrm_state = state;
 
 	mrp_netlink_set_ring_state(mrp, state == MRP_MRM_STATE_CHK_RC ?
@@ -149,13 +150,13 @@ void mrp_set_mrm_state(struct mrp *mrp, enum mrp_mrm_state_type state)
 
 void mrp_set_mrc_state(struct mrp *mrp, enum mrp_mrc_state_type state)
 {
-	printf("mrc_state: %s\n", mrp_get_mrc_state(state));
+	pr_info("mrc_state: %s", mrp_get_mrc_state(state));
 	mrp->mrc_state = state;
 }
 
 void mrp_set_mim_state(struct mrp *mrp, enum mrp_mim_state_type state)
 {
-	printf("mim_state: %s\n", mrp_get_mim_state(state));
+	pr_info("mim_state: %s", mrp_get_mim_state(state));
 	mrp->mim_state = state;
 
 	mrp_netlink_set_in_state(mrp, state == MRP_MIM_STATE_CHK_IC ?
@@ -164,7 +165,7 @@ void mrp_set_mim_state(struct mrp *mrp, enum mrp_mim_state_type state)
 
 void mrp_set_mic_state(struct mrp *mrp, enum mrp_mic_state_type state)
 {
-	printf("mic_state: %s\n", mrp_get_mic_state(state));
+	pr_info("mic_state: %s", mrp_get_mic_state(state));
 	mrp->mic_state = state;
 }
 
@@ -484,7 +485,7 @@ void mrp_ring_topo_send(struct mrp *mrp, uint32_t time)
  */
 void mrp_ring_topo_req(struct mrp *mrp, uint32_t time)
 {
-	printf("topo_req: %d\n", time);
+	pr_info("topo_req: %d", time);
 
 	mrp_ring_topo_send(mrp, time * mrp->ring_topo_conf_max);
 
@@ -540,7 +541,7 @@ out:
 /* Send MRP_LinkChange frames on one of MRP ports */
 void mrp_ring_link_req(struct mrp_port *p, bool up, uint32_t interval)
 {
-	printf("link_req up: %d interval: %d\n", up, interval);
+	pr_info("link_req up: %d interval: %d", up, interval);
 
 	mrp_send_ring_link(p, up, interval);
 }
@@ -721,7 +722,7 @@ void mrp_in_topo_send(struct mrp *mrp, uint32_t interval)
  */
 void mrp_in_topo_req(struct mrp *mrp, uint32_t time)
 {
-	printf("in_topo_reg: %d\n", time);
+	pr_info("in_topo_reg: %d", time);
 
 	mrp_in_topo_send(mrp, time * mrp->in_topo_conf_max);
 
@@ -777,7 +778,7 @@ out:
 /* Send MRP_IntLinkChange frames on all MRP ports */
 void mrp_in_link_req(struct mrp *mrp, bool up, uint32_t  interval)
 {
-	printf("in_link_req up: %d interval: %d\n", up, interval);
+	pr_info("in_link_req up: %d interval: %d", up, interval);
 
 	mrp_send_in_link(mrp->p_port, up, interval);
 	mrp_send_in_link(mrp->s_port, up, interval);
@@ -944,8 +945,8 @@ static void mrp_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
 	struct br_mrp_ring_topo_hdr *hdr;
 	struct mrp *mrp = p->mrp;
 
-	printf("recv ring_topo, mrc state: %s\n",
-	       mrp_get_mrc_state(mrp->mrc_state));
+	pr_info("recv ring_topo, mrc state: %s",
+	        mrp_get_mrc_state(mrp->mrc_state));
 
 	/* remove MRP version, tlv and get ring topo header */
 	buf += sizeof(int16_t) + sizeof(struct br_mrp_tlv_hdr);
@@ -988,8 +989,8 @@ static void mrp_recv_ring_link(struct mrp_port *p, unsigned char *buf)
 	struct mrp *mrp = p->mrp;
 	struct br_mrp_tlv_hdr *tlv;
 
-	printf("recv ring_link, mrm state: %s\n",
-	       mrp_get_mrm_state(mrp->mrm_state));
+	pr_info("recv ring_link, mrm state: %s",
+	        mrp_get_mrm_state(mrp->mrm_state));
 
 	/* remove MRP version to get the tlv */
 	buf += sizeof(uint16_t);
@@ -1196,8 +1197,8 @@ static void mrp_recv_option(struct mrp_port *p, unsigned char *buf)
 	struct br_mrp_sub_tlv_hdr *sub_tlv;
 	struct mrp *mrp = p->mrp;
 
-	printf("recv opt frame, mrm state: %s\n",
-	       mrp_get_mrm_state(mrp->mrm_state));
+	pr_info("recv opt frame, mrm state: %s",
+	        mrp_get_mrm_state(mrp->mrm_state));
 
 	/* remove MRP version to get the tlv */
 	buf += sizeof(uint16_t);
@@ -1269,9 +1270,9 @@ static void mrp_recv_in_topo(struct mrp_port *p, unsigned char *buf)
 	struct br_mrp_in_topo_hdr *hdr;
 	struct mrp *mrp = p->mrp;
 
-	printf("recv in_topo, mic state: %s mrm state %s\n",
-	       mrp_get_mic_state(mrp->mic_state),
-	       mrp_get_mrm_state(mrp->mrm_state));
+	pr_info("recv in_topo, mic state: %s mrm state %s",
+	        mrp_get_mic_state(mrp->mic_state),
+	        mrp_get_mrm_state(mrp->mrm_state));
 
 	/* remove MRP version, tlv and get int topo change header */
 	buf += sizeof(int16_t) + sizeof(struct br_mrp_tlv_hdr);
@@ -1321,8 +1322,8 @@ static void mrp_recv_in_link(struct mrp_port *p, unsigned char *buf)
 	struct br_mrp_tlv_hdr *tlv;
 	struct mrp *mrp = p->mrp;
 
-	printf("recv in_link, mim state: %s\n",
-	       mrp_get_mim_state(mrp->mim_state));
+	pr_info("recv in_link, mim state: %s",
+	        mrp_get_mim_state(mrp->mim_state));
 
 	/* remove MRP version to get the tlv */
 	buf += sizeof(int16_t);
@@ -1373,8 +1374,8 @@ static void mrp_recv_in_link_status(struct mrp_port *p, unsigned char *buf)
 	if (mrp->in_mode != MRP_IN_MODE_LC)
 		return;
 
-	printf("recv in_link_status, mic state: %s\n",
-	       mrp_get_mic_state(mrp->mic_state));
+	pr_info("recv in_link_status, mic state: %s",
+	        mrp_get_mic_state(mrp->mic_state));
 
 	/* remove MRP version, tlv and get in link status header */
 	buf += sizeof(int16_t) + sizeof(struct br_mrp_tlv_hdr);
@@ -1511,7 +1512,7 @@ static void mrp_process(struct mrp_port *p, unsigned char *buf,
 		mrp_recv_in_link_status(p, buf);
 		break;
 	default:
-		printf("Unknown type: %d\n", type);
+		pr_err("Unknown type: %d", type);
 	}
 }
 
@@ -1595,8 +1596,8 @@ static void mrp_mrm_port_link(struct mrp_port *p, bool up)
 	struct mrp *mrp = p->mrp;
 	uint32_t topo_interval = mrp->ring_topo_conf_interval;
 
-	printf("up: %d, mrm_state: %s\n",
-	       up, mrp_get_mrm_state(mrp->mrm_state));
+	pr_info("up: %d, mrm_state: %s",
+	        up, mrp_get_mrm_state(mrp->mrm_state));
 
 	switch (mrp->mrm_state) {
 	case MRP_MRM_STATE_AC_STAT1:
@@ -1672,7 +1673,7 @@ static void mrp_mrm_port_link(struct mrp_port *p, bool up)
 		break;
 	}
 
-	printf("new mrm_state: %s\n", mrp_get_mrm_state(mrp->mrm_state));
+	pr_info("new mrm_state: %s", mrp_get_mrm_state(mrp->mrm_state));
 }
 
 /* Represents the state machine for when MRP instance has the role MRC and the
@@ -1682,8 +1683,8 @@ static void mrp_mrc_port_link(struct mrp_port *p, bool up)
 {
 	struct mrp *mrp = p->mrp;
 
-	printf("up: %d, mrc_state: %s\n",
-		up, mrp_get_mrc_state(mrp->mrc_state));
+	pr_info("up: %d, mrc_state: %s",
+	        up, mrp_get_mrc_state(mrp->mrc_state));
 
 	switch (mrp->mrc_state) {
 	case MRP_MRC_STATE_AC_STAT1:
@@ -1794,7 +1795,7 @@ static void mrp_mrc_port_link(struct mrp_port *p, bool up)
 		break;
 	}
 
-	printf("new mrc_state: %s\n", mrp_get_mrc_state(mrp->mrc_state));
+	pr_info("new mrc_state: %s", mrp_get_mrc_state(mrp->mrc_state));
 }
 
 /* Represents the state machine for when MRP instance has the role MIM and the
@@ -1804,8 +1805,8 @@ static void mrp_mim_port_link(struct mrp_port *p, bool up)
 {
 	struct mrp *mrp = p->mrp;
 
-	printf("up: %d, mim_state: %s\n",
-	       up, mrp_get_mim_state(mrp->mim_state));
+	pr_info("up: %d, mim_state: %s",
+	        up, mrp_get_mim_state(mrp->mim_state));
 
 	if (up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mim_state) {
@@ -1881,8 +1882,8 @@ static void mrp_mim_port_link(struct mrp_port *p, bool up)
 	}
 
 
-	printf("%s: new mim_state: %s\n", __func__,
-	       mrp_get_mim_state(mrp->mim_state));
+	pr_info("%s: new mim_state: %s", __func__,
+	        mrp_get_mim_state(mrp->mim_state));
 }
 
 /* Represents the state machine for when MRP instance has the role MIC and the
@@ -1892,8 +1893,8 @@ static void mrp_mic_port_link(struct mrp_port *p, bool up)
 {
 	struct mrp *mrp = p->mrp;
 
-	printf("up: %d, mic_state: %s\n",
-	       up, mrp_get_mic_state(mrp->mic_state));
+	pr_info("up: %d, mic_state: %s",
+	        up, mrp_get_mic_state(mrp->mic_state));
 
 	if (up && mrp->in_mode == MRP_IN_MODE_RC) {
 		switch (mrp->mic_state) {
@@ -1978,8 +1979,8 @@ static void mrp_mic_port_link(struct mrp_port *p, bool up)
 		}
 	}
 
-	printf("%s: new mic_state: %s\n", __func__,
-	       mrp_get_mic_state(mrp->mic_state));
+	pr_info("%s: new mic_state: %s", __func__,
+	        mrp_get_mic_state(mrp->mic_state));
 }
 
 /* Whenever the port link changes, this function is called */
@@ -2569,7 +2570,7 @@ int mrp_del(uint32_t br_ifindex, uint32_t ring_nr)
 
 	mrp = mrp_find(br_ifindex, ring_nr);
 	if (!mrp) {
-		printf("%s with invalid ring nr: %d\n", __func__, ring_nr);
+		pr_err("%s with invalid ring nr: %d", __func__, ring_nr);
 		return -EINVAL;
 	}
 

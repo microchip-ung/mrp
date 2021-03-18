@@ -6,6 +6,7 @@
 
 #include "state_machine.h"
 #include "cfm_netlink.h"
+#include "print.h"
 
 static bool mrp_mrc_ring_open(struct mrp *mrp)
 {
@@ -130,8 +131,8 @@ static void mrp_ring_topo_expired(struct ev_loop *loop,
 {
 	struct mrp *mrp = container_of(w, struct mrp, ring_topo_work);
 
-	printf("ring topo expired: ring_topo_curr_max: %d\n",
-	       mrp->ring_topo_curr_max);
+	pr_info("ring topo expired: ring_topo_curr_max: %d",
+	        mrp->ring_topo_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -159,8 +160,8 @@ static void mrp_ring_link_up_expired(struct ev_loop *loop,
 	uint32_t interval;
 	uint32_t delay;
 
-	printf("ring link up expired: ring_link_curr_max: %d\n",
-	       mrp->ring_link_curr_max);
+	pr_info("ring link up expired: ring_link_curr_max: %d",
+	        mrp->ring_link_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -193,8 +194,8 @@ static void mrp_ring_link_down_expired(struct ev_loop *loop,
 	uint32_t interval;
 	uint32_t delay;
 
-	printf("ring link down expired: ring_link_curr_max: %d\n",
-	       mrp->ring_link_curr_max);
+	pr_info("ring link down expired: ring_link_curr_max: %d",
+	        mrp->ring_link_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -257,8 +258,8 @@ static void mrp_in_topo_expired(struct ev_loop *loop,
 {
 	struct mrp *mrp = container_of(w, struct mrp, in_topo_work);
 
-	printf("int topo expired: in_topo_curr_max: %d\n",
-	       mrp->in_topo_curr_max);
+	pr_info("int topo expired: in_topo_curr_max: %d",
+	        mrp->in_topo_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -286,8 +287,8 @@ static void mrp_in_link_up_expired(struct ev_loop *loop,
 	uint32_t interval;
 	uint32_t delay;
 
-	printf("int link up expired: in_link_curr_max: %d\n",
-	       mrp->in_link_curr_max);
+	pr_info("int link up expired: in_link_curr_max: %d",
+	        mrp->in_link_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -320,8 +321,8 @@ static void mrp_in_link_down_expired(struct ev_loop *loop,
 	uint32_t interval;
 	uint32_t delay;
 
-	printf("int link down expired: in_link_curr_max: %d\n",
-	       mrp->in_link_curr_max);
+	pr_info("int link down expired: in_link_curr_max: %d",
+	        mrp->in_link_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 
@@ -351,8 +352,8 @@ static void mrp_in_link_status_expired(struct ev_loop *loop,
 	uint32_t interval;
 	uint32_t delay;
 
-	printf("in link status expired: in_link_status_curr_max: %d\n",
-	       mrp->in_link_status_curr_max);
+	pr_info("in link status expired: in_link_status_curr_max: %d",
+	        mrp->in_link_status_curr_max);
 
 	pthread_mutex_lock(&mrp->lock);
 

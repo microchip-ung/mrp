@@ -15,6 +15,7 @@
 #include "state_machine.h"
 #include "utils.h"
 #include "libnetlink.h"
+#include "print.h"
 
 static struct rtnl_handle rth = { .fd = -1 };
 
@@ -102,7 +103,7 @@ static int get_bridges(struct nlmsghdr *n, void *arg)
 
 	len -= NLMSG_LENGTH(sizeof(*ifi));
 	if (len < 0) {
-		fprintf(stderr, "Message too short!\n");
+		pr_err("Message too short!");
 		return -1;
 	}
 
@@ -147,7 +148,7 @@ static int mrp_netlink_clear(void)
 
 	err = rtnl_linkdump_req_filter(&rth, PF_BRIDGE, RTEXT_FILTER_MRP);
 	if (err < 0) {
-		fprintf(stderr, "Cannot rtnl_linkdump_req_filter\n");
+		pr_err("Cannot rtnl_linkdump_req_filter");
 		return err;
 	}
 
@@ -177,7 +178,7 @@ static int mrp_netlink_clear(void)
 int mrp_netlink_init(void)
 {
 	if (rtnl_open(&rth, 0) < 0) {
-		fprintf(stderr, "Cannot open rtnetlink\n");
+		pr_err("Cannot open rtnetlink");
 		return EXIT_FAILURE;
 	}
 

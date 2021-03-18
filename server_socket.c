@@ -11,6 +11,7 @@
 
 #include "server_cmds.h"
 #include "utils.h"
+#include "print.h"
 
 static EV_P;
 static ev_io client_watcher;
@@ -21,17 +22,15 @@ static int server_socket(void)
 	struct sockaddr_un sa;
 	int s;
 
-	if(0 > (s = socket(PF_UNIX, SOCK_DGRAM, 0)))
-	{
-		fprintf(stderr, "Couldn't open unix socket: %m");
+	if(0 > (s = socket(PF_UNIX, SOCK_DGRAM, 0))) {
+		pr_err("Couldn't open unix socket: %d", errno);
 		return -1;
 	}
 
 	set_socket_address(&sa, MRP_SERVER_SOCK_NAME);
 	
-	if(0 != bind(s, (struct sockaddr *)&sa, sizeof(sa)))
-	{
-		fprintf(stderr, "Couldn't bind socket: %m");
+	if(0 != bind(s, (struct sockaddr *)&sa, sizeof(sa))) {
+		pr_err("Couldn't bind socket: %d", errno);
 		close(s);
 		return -1;
 	}
@@ -80,7 +79,7 @@ static void ctl_rcv_handler(EV_P_ ev_io *w, int revents)
 	   || (MSG_BUF_LEN < mhdr.lout)
 	   || (0 > mhdr.cmd)
 	  ) {
-		fprintf(stderr, "CTL: Unexpected message. Ignoring");
+		pr_err("CTL: Unexpected message. Ignoring");
 		return;
 	}
 
@@ -94,9 +93,10 @@ static void ctl_rcv_handler(EV_P_ ev_io *w, int revents)
 	iov[1].iov_len = mhdr.lout;
 	l = sendmsg(fd, &msg, MSG_NOSIGNAL);
 	if (l < 0) {
-		fprintf(stderr, "CTL: Couldn't send response: %m");
+		pr_err("CTL: Couldn't send response: %d", errno);
 	} else if (l != sizeof(mhdr) + mhdr.lout) {
-		fprintf(stderr, "CTL: Couldn't send full response, sent %d bytes instead of %zd.", l, sizeof(mhdr) + mhdr.lout);
+		pr_err("CTL: Couldn't send full response, sent %d bytes instead of %zd.",
+		       l, sizeof(mhdr) + mhdr.lout);
 	}
 }
 
