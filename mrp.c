@@ -210,7 +210,7 @@ static void cfm_dmac_get(char *argv, char *dmac)
 	       &values[0], &values[1], &values[2],
 	       &values[3], &values[4], &values[5]);
 
-	for( i = 0; i < ETH_ALEN; ++i )
+	for(i = 0; i < ETH_ALEN; ++i)
 		dmac[i] = (uint8_t) values[i];
 }
 
@@ -261,8 +261,7 @@ static int client_init(void)
 
 static void client_cleanup(void)
 {
-	if (fd >= 0)
-	{
+	if (fd >= 0) {
 		close(fd);
 		fd = -1;
 	}
@@ -311,13 +310,11 @@ static int client_send_message(int cmd, void *inbuf, int lin, void *outbuf,
 	pfd.fd = fd;
 	pfd.events = POLLIN;
 	do {
-		if (0 == (r = poll(&pfd, 1, timeout)))
-		{
+		if (0 == (r = poll(&pfd, 1, timeout))) {
 			fprintf(stderr, "Error getting message from server: Timeout");
 			return -1;
 		}
-		if (0 > r)
-		{
+		if (0 > r) {
 			fprintf(stderr, "Error getting message from server: poll error: %m");
 			return -1;
 		}
@@ -599,7 +596,7 @@ int main (int argc, char *const *argv)
 
 	while (EOF != (f = getopt_long(argc, argv, "h", options, NULL))) {
 		switch (f) {
-			case 'h':
+		case 'h':
 			help();
 			return 0;
 		}
