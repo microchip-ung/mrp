@@ -12,6 +12,16 @@
 static int verbose = 0;
 static int print_level = LOG_INFO;
 
+void print_set_level(int level)
+{
+	print_level = level;
+}
+
+void print_set_verbose(int value)
+{
+	verbose = value;
+}
+
 void print(int level, char const *format, ...)
 {
 	struct timespec ts;
