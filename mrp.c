@@ -154,6 +154,33 @@ static char* ring_recv_str(enum mrp_ring_recovery_type ring_recv)
 	}
 }
 
+static int valid_in_recv(char *arg)
+{
+	if (strcmp(arg, "500") == 0 ||
+	    strcmp(arg, "200") == 0)
+		return 1;
+	return 0;
+}
+
+static enum mrp_in_recovery_type in_recv_int(char *arg)
+{
+	if (strcmp(arg, "500") == 0)
+		return MRP_IN_RECOVERY_500;
+	if (strcmp(arg, "200") == 0)
+		return MRP_IN_RECOVERY_200;
+	return MRP_IN_RECOVERY_500;
+}
+
+static char* in_recv_str(enum mrp_in_recovery_type in_recv)
+{
+	switch (in_recv) {
+	case MRP_IN_RECOVERY_500: return "500";
+	case MRP_IN_RECOVERY_200: return "200";
+	default:
+		return "Unknown interconnect recovery";
+	}
+}
+
 static char *mrm_state_str(int mrm_state)
 {
 	switch (mrm_state) {
@@ -349,6 +376,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 	int br = 0, pport = 0, sport = 0, ring_nr = 0, ring_role = 0;
 	uint16_t prio = MRP_DEFAULT_PRIO;
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
+	uint8_t in_recv = MRP_IN_RECOVERY_500;
 	uint8_t react_on_link_change = 1;
 	int in_role = BR_MRP_IN_ROLE_DISABLED, iport = 0;
 	int in_mode = MRP_IN_MODE_RC;
@@ -398,6 +426,11 @@ static int cmd_addmrp(int argc, char *const *argv)
 			if (!valid_in_role(*argv))
 				return -1;
 			in_role = in_role_int(*argv);
+		} else if (strcmp(*argv, "in_recv") == 0) {
+			NEXT_ARG();
+			if (!valid_in_recv(*argv))
+				return -1;
+			in_recv = in_recv_int(*argv);
 		} else if (strcmp(*argv, "in_id") == 0) {
 			NEXT_ARG();
 			in_id = atoi(*argv);
@@ -438,8 +471,9 @@ static int cmd_addmrp(int argc, char *const *argv)
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
 			  ring_recv, react_on_link_change, in_role,
-			  in_id, iport, in_mode, cfm_instance, cfm_level,
-			  cfm_mepid, cfm_peer_mepid, cfm_maid, cfm_dmac);
+			  in_id, iport, in_mode, in_recv, cfm_instance,
+			  cfm_level, cfm_mepid, cfm_peer_mepid, cfm_maid,
+			  cfm_dmac);
 }
 
 static int cmd_delmrp(int argc, char *const *argv)
@@ -501,6 +535,7 @@ static int cmd_getmrp(int argc, char *const *argv)
 		printf("iport: %s ", if_indextoname(status[i].iport, ifname));
 		printf("in_id: %d ", status[i].in_id);
 		printf("in_role: %s ", in_role_str(status[i].in_role));
+		printf("in_recv: %s \n", in_recv_str(status[i].in_recv));
 		printf("in_mode: %s ", in_mode_str(status[i].in_mode));
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIM)
 			printf("in_state: %s \n", mim_state_str(status[i].in_state));

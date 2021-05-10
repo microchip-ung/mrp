@@ -2420,6 +2420,7 @@ int mrp_get(int *count, struct mrp_status *status)
 		status[i].in_id = mrp->in_id;
 		status[i].in_role = mrp->in_role;
 		status[i].in_mode = mrp->in_mode;
+		status[i].in_recv = mrp->in_recv;
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIM)
 			status[i].in_state = mrp->mim_state;
 		if (status[i].in_role == BR_MRP_IN_ROLE_MIC)
@@ -2477,9 +2478,9 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio,
 	    uint8_t ring_recv, uint8_t react_on_link_change,
 	    uint32_t in_role, uint16_t in_id, uint32_t iport,
-	    uint32_t in_mode, uint32_t cfm_instance, uint32_t cfm_level,
-	    uint32_t cfm_mepid, uint32_t cfm_peer_mepid, char *cfm_maid,
-	    char *cfm_dmac)
+	    uint32_t in_mode, uint8_t in_recv, uint32_t cfm_instance,
+	    uint32_t cfm_level, uint32_t cfm_mepid, uint32_t cfm_peer_mepid,
+	    char *cfm_maid, char *cfm_dmac)
 {
 	struct mrp *mrp;
 	int err;
@@ -2500,7 +2501,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 
 	mrp->ifindex = br_ifindex;
 	mrp->prio = prio;
-	mrp_update_recovery(mrp, ring_recv, MRP_IN_RECOVERY_500);
+	mrp_update_recovery(mrp, ring_recv, in_recv);
 	mrp->react_on_link_change = react_on_link_change;
 	mrp->in_mode = in_mode;
 

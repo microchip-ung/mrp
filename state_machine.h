@@ -153,7 +153,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	    uint32_t sport, uint32_t ring_role, uint16_t prio,
 	    uint8_t ring_recv, uint8_t react_on_link_change,
 	    uint32_t in_role, uint16_t in_id, uint32_t iport,
-	    uint32_t in_mode, uint32_t cfm_instance,
+	    uint32_t in_mode, uint8_t in_recv, uint32_t cfm_instance,
 	    uint32_t cfm_level, uint32_t cfm_mepid,
 	    uint32_t cfm_peer_mepid, char *cfm_maid, char *cfm_dmac);
 int mrp_del(uint32_t br_ifindex, uint32_t ring_nr);

@@ -20,7 +20,7 @@ enum
 int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
 	       uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change,
 	       int in_role, uint16_t in_id, int iport, int in_mode,
-	       int cfm_instance, int cfm_level, int cfm_mepid,
+	       uint8_t in_recv, int cfm_instance, int cfm_level, int cfm_mepid,
 	       int cfm_peer_mepid, char *cfm_maid, char *cfm_dmac);
 int CTL_delmrp(int br_index, int ring_nr);
 int CTL_getmrp(int *count, struct mrp_status *status);

@@ -30,13 +30,13 @@ static ev_io netlink_watcher;
 int CTL_addmrp(int br_index, int ring_nr, int pport, int sport, int ring_role,
 	       uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change,
 	       int in_role, uint16_t in_id, int iport, int in_mode,
-	       int cfm_instance, int cfm_level, int cfm_mepid,
+	       uint8_t in_recv, int cfm_instance, int cfm_level, int cfm_mepid,
 	       int cfm_peer_mepid, char *cfm_maid, char *cfm_dmac)
 {
 	return mrp_add(br_index, ring_nr, pport, sport, ring_role, prio,
 		       ring_recv, react_on_link_change, in_role, in_id,
-		       iport, in_mode, cfm_instance, cfm_level, cfm_mepid,
-		       cfm_peer_mepid, cfm_maid, cfm_dmac);
+		       iport, in_mode, in_recv, cfm_instance, cfm_level,
+		       cfm_mepid, cfm_peer_mepid, cfm_maid, cfm_dmac);
 }
 
 int CTL_delmrp(int br_index, int ring_nr)

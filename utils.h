@@ -129,6 +129,7 @@ struct mrp_status {
 	int iport;
 	int in_id;
 	int in_mode;
+	int in_recv;
 };
 
 #define CTL_DECLARE(name) \
@@ -138,8 +139,9 @@ int CTL_ ## name name ## _ARGS
 #define addmrp_ARGS (int br, int ring_nr, int pport, int sport, int ring_role,       \
 		     uint16_t prio, uint8_t ring_recv, uint8_t react_on_link_change, \
 		     int in_role, uint16_t in_id, int iport, int in_mode,            \
-		     int cfm_instance, int cfm_level, int cfm_mepid,                 \
-		     int cfm_peer_mepid, char *cfm_maid, char *cfm_dmac)
+		     uint8_t in_recv, int cfm_instance, int cfm_level,               \
+		     int cfm_mepid, int cfm_peer_mepid, char *cfm_maid,              \
+		     char *cfm_dmac)
 struct addmrp_IN
 {
 	int br;
@@ -154,6 +156,7 @@ struct addmrp_IN
 	int in_id;
 	int iport;
 	int in_mode;
+	int in_recv;
 	int cfm_instance;
 	int cfm_level;
 	int cfm_mepid;
@@ -178,6 +181,7 @@ struct addmrp_OUT
      in->in_id = in_id;                                          \
      in->iport = iport;                                          \
      in->in_mode = in_mode;                                      \
+     in->in_recv = in_recv;                                      \
      in->cfm_instance = cfm_instance;                            \
      in->cfm_level = cfm_level;                                  \
      in->cfm_mepid = cfm_mepid;                                  \
@@ -189,8 +193,9 @@ struct addmrp_OUT
 #define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role,\
 		     in->prio, in->ring_recv, in->react_on_link_change,\
 		     in->in_role, in->in_id, in->iport, in->in_mode,\
-		     in->cfm_instance, in->cfm_level, in->cfm_mepid, \
-		     in->cfm_peer_mepid, in->cfm_maid, in->cfm_dmac)
+		     in->in_recv, in->cfm_instance, in->cfm_level, \
+		     in->cfm_mepid, in->cfm_peer_mepid, in->cfm_maid, \
+		     in->cfm_dmac)
 CTL_DECLARE(addmrp);
 
 #define CMD_CODE_delmrp    102
