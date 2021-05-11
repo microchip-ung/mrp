@@ -550,39 +550,47 @@ struct command
 {
 	const char *name;
 	int (*func) (int argc, char *const *argv);
-	const char *format;
-	const char *help;
 };
 
 static const struct command commands[] =
 {
-	/* Add/delete bridges */
-	{"addmrp", cmd_addmrp,
-	 "bridge <bridge> ring_nr <ring_nr> pport <pport> sport <sport> ring_role <role> [prio <prio> in_role <role> in_id <id> iport <iport> in_mode <imode>\n"
-	 "                cfm_instance <cfm_inst> cfm_level <cfm_level> cfm_mepid <cfm_mepid> cfm_peer_mepid <cfm_peer_mepid> cfm_maid <cfm_maid> cfm_dmac <cfm_dmac>", "Create MRP instance"},
-	{"delmrp", cmd_delmrp,
-	 "bridge <bridge> ring_nr <ring_nr>", "Delete MRP instance"},
-	{"getmrp", cmd_getmrp, "", "Show MRP instances"},
+	{"addmrp", cmd_addmrp},
+	{"delmrp", cmd_delmrp},
+	{"getmrp", cmd_getmrp},
 };
-
-static void command_helpall(void)
-{
-	int i;
-
-	for (i = 0; i < COUNT_OF(commands); ++i) {
-		if(strcmp("setportdonttxmt", commands[i].name))
-			printf("-%s:\n   %-16s %s\n", commands[i].help,
-			       commands[i].name, commands[i].format);
-	}
-}
 
 static void help(void)
 {
-	printf("Usage: mrp [options] [commands]\n");
-	printf("options:\n");
-	printf("  -h | --help              Show this help text\n");
-	printf("commands:\n");
-	command_helpall();
+	printf("Usage: mrp [options] [commands]\n"
+		"options:\n"
+		"  -h | --help              Show this help text\n"
+		"commands:\n\n"
+		"addmrp: Create MRP instance\n"
+		"Mandatory arguments:\n"
+		" --bridge          [bridge]    Bridge name on which to create MRP instance\n"
+		" --ring_nr         [id]        The ID of MRP instance\n"
+		" --pport           [port]      Primary port name\n"
+		" --sport           [port]      Secondary port name\n"
+		" --ring_role       [role]      Ring role (MRM, MRC, MRA)\n"
+		"Optional arguments:\n"
+		" --ring_recv       [recovery]    Ring recovery time(500,200,30,10)\n"
+		" --prio            [priority]    Instance priority\n"
+		" --in_role         [in_role]     Interconnect role(MIM, MIC)\n"
+		" --iport           [port]        Interconnect port name\n"
+		" --in_id           [in_id]       Interconnect ring id\n"
+		" --in_mode         [in_mode]     Interconnect operating mode(LC, RC)\n"
+		" --in_recv         [in_recv]     Interconnect recovery time(500,200)\n"
+		" --cfm_instance    [instance]    CFM instance ID\n"
+		" --cfm_level       [level]       CFM level\n"
+		" --cfm_mepid       [mepid]       CFM mepid\n"
+		" --cfm_peer_mepid  [peer_mepid]  CFM peer mepid\n"
+		" --cfm_maid        [maid]        CFM maid\n"
+		" --cfm_dmac        [dmac]        CFM destination MAC\n\n"
+		"delmrp: Delete MRP instance\n"
+		"Mandatory arguments:\n"
+		" --bridge          [bridge]    Bridge name on which the MRP instance exists\n"
+		" --ring_nr         [id]        The ID of MRP instance\n\n"
+		"getmrp: Show MRP instance\n\n");
 }
 
 static const struct command *command_lookup(const char *cmd)
