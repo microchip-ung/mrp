@@ -39,8 +39,8 @@ MRP_InTest frames between all ports.
 
 ## Dependencies
 
-It depends on the following libs Linux 5.8, 'libnl', 'libev', 'libmnl' and
-'libcfm'.
+It depends on the following libs 'libnl', 'libev', 'libmnl' and
+'libcfm' and on a kernel that has MRP support(at least v5.8)
 
 CFM can be found here: https://github.com/microchip-ung/cfm
 
