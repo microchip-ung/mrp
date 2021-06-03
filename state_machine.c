@@ -865,7 +865,7 @@ static void mrp_mrm_recv_ring_test(struct mrp *mrp)
 
 		mrp_ring_test_req(mrp, mrp->ring_test_conf_interval);
 
-		topo_interval = !mrp->react_on_link_change ? 0 : topo_interval;
+		topo_interval = mrp->react_on_link_change ? 0 : topo_interval;
 		mrp_ring_topo_req(mrp, topo_interval);
 
 		mrp_set_mrm_state(mrp, MRP_MRM_STATE_CHK_RC);
