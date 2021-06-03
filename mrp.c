@@ -16,6 +16,8 @@
 
 #include <linux/cfm_bridge.h>
 
+#define MRP_MRA_PRIO		0xa000
+
 static void incomplete_command(void)
 {
 	printf("Command line is not complete. Try option \"help\"\n");
@@ -375,6 +377,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 {
 	int br = 0, pport = 0, sport = 0, ring_nr = 0, ring_role = 0;
 	uint16_t prio = MRP_DEFAULT_PRIO;
+	bool prio_set = false;
 	uint8_t ring_recv = MRP_RING_RECOVERY_500;
 	uint8_t in_recv = MRP_IN_RECOVERY_500;
 	uint8_t react_on_link_change = 1;
@@ -410,6 +413,7 @@ static int cmd_addmrp(int argc, char *const *argv)
 		} else if (strcmp(*argv, "prio") == 0) {
 			NEXT_ARG();
 			prio = atoi(*argv);
+			prio_set = true;
 		} else if (strcmp(*argv, "ring_recv") == 0) {
 			NEXT_ARG();
 			if (!valid_ring_recv(*argv))
@@ -468,6 +472,9 @@ static int cmd_addmrp(int argc, char *const *argv)
 	if (br == 0 || pport == 0 || sport == 0 || ring_nr == 0 ||
 	    ring_role == 0)
 		return -1;
+
+	if (ring_role == BR_MRP_RING_ROLE_MRA && prio_set == false)
+		prio = MRP_MRA_PRIO;
 
 	return CTL_addmrp(br, ring_nr, pport, sport, ring_role, prio,
 			  ring_recv, react_on_link_change, in_role,
