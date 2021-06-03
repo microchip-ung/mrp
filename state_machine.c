@@ -939,10 +939,32 @@ static void mrp_recv_ring_test(struct mrp_port *p, unsigned char *buf)
 }
 
 /* Represents the state machine for when a MRP_TopologyChange frame was
- * received on one of the MRP ports and the MRP instance has the role MRC. When
- * MRP instance has the role MRM it doesn't need to process the frame.
+ * received on one of the MRP ports and the MRP instance has the role MRM and
+ * has MRA support;
  */
-static void mrp_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
+static void mrp_mra_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
+{
+	struct br_mrp_ring_topo_hdr *hdr;
+	struct mrp *mrp = p->mrp;
+
+	pr_info("recv ring_topo, mrm state: %s",
+	        mrp_get_mrm_state(mrp->mrm_state));
+
+	/* remove MRP version, tlv and get ring topo header */
+	buf += sizeof(int16_t) + sizeof(struct br_mrp_tlv_hdr);
+	hdr = (struct br_mrp_ring_topo_hdr *)buf;
+
+	if (ether_addr_equal(hdr->sa, mrp->macaddr))
+		return;
+
+
+	mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
+}
+
+/* Represents the state machine for when a MRP_TopologyChange frame was
+ * received on one of the MRP ports and the MRP instance has the role MRC
+ */
+static void mrp_mrc_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
 {
 	struct br_mrp_ring_topo_hdr *hdr;
 	struct mrp *mrp = p->mrp;
@@ -979,6 +1001,16 @@ static void mrp_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
 		mrp_clear_fdb_start(mrp, ntohs(hdr->interval) * 1000);
 		break;
 	}
+}
+
+static void mrp_recv_ring_topo(struct mrp_port *p, unsigned char *buf)
+{
+	struct mrp *mrp = p->mrp;
+
+	if (mrp->mra_support && mrp->ring_role == BR_MRP_RING_ROLE_MRM)
+		return mrp_mra_recv_ring_topo(p, buf);
+
+	return mrp_mrc_recv_ring_topo(p, buf);
 }
 
 /* Represents the state machine for when a MRP_LinkChange frame was
@@ -1455,7 +1487,8 @@ static bool mrp_should_process(const struct mrp_port *p,
 			return true;
 		break;
 	case BR_MRP_TLV_HEADER_RING_TOPO:
-		if (mrp->ring_role == BR_MRP_RING_ROLE_MRC)
+		if (mrp->ring_role == BR_MRP_RING_ROLE_MRC ||
+		    (mrp->ring_role == BR_MRP_RING_ROLE_MRM && mrp->mra_support))
 			return true;
 		break;
 	case BR_MRP_TLV_HEADER_OPTION:
