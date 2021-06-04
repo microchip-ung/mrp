@@ -1195,6 +1195,8 @@ static void mrp_recv_nack(struct mrp_port *p, unsigned char *buf)
 	}
 
 	mrp->test_monitor = true;
+	mrp->p_port->loc = 0;
+	mrp->s_port->loc = 0;
 	mrp_netlink_send_ring_test(mrp, mrp->ring_test_conf_interval,
 				   mrp->ring_test_conf_max,
 				   mrp->ring_test_conf_period);
