@@ -2540,6 +2540,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 
 	mrp->ifindex = br_ifindex;
 	mrp->prio = prio;
+	mrp->ring_prio = prio;
 	mrp_update_recovery(mrp, ring_recv, in_recv);
 	mrp->react_on_link_change = react_on_link_change;
 	mrp->in_mode = in_mode;
