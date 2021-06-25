@@ -562,7 +562,8 @@ static void mrp_send_test_mgr_nack(struct mrp_port *p, uint8_t sa[ETH_ALEN])
 	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_OPTION,
 		   sizeof(struct br_mrp_oui_hdr) +
 		   sizeof(struct br_mrp_sub_opt_hdr) +
-		   sizeof(struct br_mrp_sub_tlv_hdr));
+		   sizeof(struct br_mrp_sub_tlv_hdr) +
+		   sizeof(struct br_mrp_test_mgr_nack_hdr));
 
 	oui_hdr = fb_put(fb, sizeof(*oui_hdr));
 	memset(oui_hdr->oui, 0x0, MRP_OUI_LENGTH);
@@ -620,7 +621,8 @@ static void mrp_send_test_prop(struct mrp_port *p)
 	mrp_fb_tlv(fb, BR_MRP_TLV_HEADER_OPTION,
 		   sizeof(struct br_mrp_oui_hdr) +
 		   sizeof(struct br_mrp_sub_opt_hdr) +
-		   sizeof(struct br_mrp_sub_tlv_hdr));
+		   sizeof(struct br_mrp_sub_tlv_hdr) +
+		   sizeof(struct br_mrp_test_prop_hdr));
 
 	oui_hdr = fb_put(fb, sizeof(*oui_hdr));
 	memset(oui_hdr->oui, 0x0, MRP_OUI_LENGTH);
