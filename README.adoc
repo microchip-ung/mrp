@@ -61,9 +61,16 @@ First the server needs to be start. Using the command
 mrp_server &
 ```
 
+By default the mrp_server doesn't display any log message. It is possible to
+start the server using this command to display all the log to the console:
+
+```bash
+mrp_server -m -l 7 &
+```
+
 If the kernel doesn't support MRP, then the server will print an error message
-and will exit. It is required for the kernel to be compiled with the config
-CONFIG_BRIDGE_MRP.
+when a MRP instance is created. It is required for the kernel to be compiled
+with the config CONFIG_BRIDGE_MRP.
 
 Before configuring the mrp instance it is required to create a bridge and add at
 least 2 ports to the bridge.
@@ -78,7 +85,6 @@ ip link set dev eth0 master br0
 ip link set dev eth1 master br0
 ip link set dev eth2 master br0
 ip link set dev eth3 master br0
-ip link set dev br0 up
 ```
 Now that the bridge is created, it is possible to add an MRP instance to the
 bridge. The client will communicate with the server and the server will notify
@@ -120,6 +126,11 @@ needs to operate in the same mode. To create a node with LC mode:
 mrp addmrp bridge br0 ring_nr 3 pport eth0 ssport eth1 ring_role mrc in_role mim
 in_id 1 iport eth3 in_mode lc cfm_instance 1 cfm_level 7 cfm_mepid 2
 cfm_peer_mepid 1 cfm_dmac 00:00:00:00:00:02 cfm_maid ABCD
+```
+
+And once all the MRP rings are created set the bridge device up:
+```bash
+ip link set dev br0 up
 ```
 
 For mode details on how to configure CFM:
