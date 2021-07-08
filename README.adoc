@@ -142,3 +142,5 @@ discuss what you would like to change.
 
 ## License
 [GPLv2](https://choosealicense.com/licenses/gpl-2.0/)
+
+This code may require licenses from owners of applicable rights.
