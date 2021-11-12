@@ -142,6 +142,7 @@ void mrp_set_mrm_state(struct mrp *mrp, enum mrp_mrm_state_type state)
 {
 	pr_info("mrm_state: %s", mrp_get_mrm_state(state));
 	mrp->mrm_state = state;
+	mrp->no_tc = false;
 
 	mrp_netlink_set_ring_state(mrp, state == MRP_MRM_STATE_CHK_RC ?
 				   BR_MRP_RING_STATE_CLOSED :
