@@ -186,8 +186,8 @@ struct addmrp_OUT
      in->cfm_level = cfm_level;                                  \
      in->cfm_mepid = cfm_mepid;                                  \
      in->cfm_peer_mepid = cfm_peer_mepid;                        \
-     strncpy(in->cfm_maid, cfm_maid, CFM_MAID_LENGTH);           \
-     strncpy(in->cfm_dmac, cfm_dmac, ETH_ALEN);                  \
+     memcpy(in->cfm_maid, cfm_maid, CFM_MAID_LENGTH);           \
+     memcpy(in->cfm_dmac, cfm_dmac, ETH_ALEN);                  \
      })
 #define addmrp_COPY_OUT ({ (void)0; })
 #define addmrp_CALL (in->br, in->ring_nr, in->pport, in->sport, in->ring_role,\
