@@ -45,7 +45,7 @@ struct mrp {
 	struct mrp_port			*i_port;
 
 	/* mac address of the ring MRM */
-	uint32_t			ring_prio;
+	uint16_t			ring_prio;
 	uint8_t				ring_mac[ETH_ALEN];
 
 	uint32_t			ring_nr;
