@@ -318,6 +318,8 @@ int mrp_netlink_send_ring_test(struct mrp *mrp, uint32_t interval, uint32_t max,
 		  period);
 	addattr32(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_TEST_MONITOR,
 		  mrp->test_monitor);
+	addattr_l(&req.n, sizeof(req), IFLA_BRIDGE_MRP_START_TEST_BEST_MAC,
+		   mrp->ring_mac, ETH_ALEN);
 
 	return mrp_nl_terminate(&req, afspec, afmrp, af_submrp);
 }
