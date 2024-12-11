@@ -77,7 +77,6 @@ static bool mrp_is_mrp_port(const struct mrp_port *p)
 
 static void mrp_reset_ring_state(struct mrp *mrp)
 {
-	mrp_timer_stop(mrp);
 	mrp->mrm_state = MRP_MRM_STATE_AC_STAT1;
 	mrp->mrc_state = MRP_MRC_STATE_AC_STAT1;
 }
@@ -2416,7 +2415,7 @@ void mrp_destroy(uint32_t br_ifindex, uint32_t ring_nr, bool offload)
 
 	pthread_mutex_lock(&mrp->lock);
 
-	mrp_reset_ring_state(mrp);
+	mrp_timer_stop(mrp);
 
 	if (mrp->in_mode == MRP_IN_MODE_LC)
 		mrp_delete_cfm(mrp);
