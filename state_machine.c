@@ -193,6 +193,9 @@ static int mrp_set_mra_role(struct mrp *mrp)
 
 	mrp_set_mrm_state(mrp, MRP_MRM_STATE_AC_STAT1);
 
+	mrp_port_netlink_set_role(mrp->p_port, BR_MRP_PORT_ROLE_PRIMARY);
+	mrp_port_netlink_set_role(mrp->s_port, BR_MRP_PORT_ROLE_SECONDARY);
+
 	mrp_port_netlink_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_netlink_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
 	err = mrp_netlink_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
@@ -228,6 +231,9 @@ static int mrp_set_mrm_role(struct mrp *mrp)
 
 	mrp_set_mrm_state(mrp, MRP_MRM_STATE_AC_STAT1);
 
+	mrp_port_netlink_set_role(mrp->p_port, BR_MRP_PORT_ROLE_PRIMARY);
+	mrp_port_netlink_set_role(mrp->s_port, BR_MRP_PORT_ROLE_SECONDARY);
+
 	mrp_port_netlink_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_netlink_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
 	err = mrp_netlink_set_ring_role(mrp, BR_MRP_RING_ROLE_MRM);
@@ -262,6 +268,9 @@ static int mrp_set_mrc_role(struct mrp *mrp)
 	mrp_set_mrc_init(mrp);
 
 	mrp_set_mrc_state(mrp, MRP_MRC_STATE_AC_STAT1);
+
+	mrp_port_netlink_set_role(mrp->p_port, BR_MRP_PORT_ROLE_PRIMARY);
+	mrp_port_netlink_set_role(mrp->s_port, BR_MRP_PORT_ROLE_SECONDARY);
 
 	mrp_port_netlink_set_state(mrp->p_port, BR_MRP_PORT_STATE_BLOCKED);
 	mrp_port_netlink_set_state(mrp->s_port, BR_MRP_PORT_STATE_BLOCKED);
