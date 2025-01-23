@@ -8,6 +8,7 @@
 #include <errno.h>
 
 #include "state_machine.h"
+#include "linux/mrp_bridge.h"
 #include "server_cmds.h"
 #include "utils.h"
 #include "packet.h"
@@ -2407,6 +2408,7 @@ void mrp_destroy(uint32_t br_ifindex, uint32_t ring_nr, bool offload)
 
 	pthread_mutex_lock(&mrp->lock);
 
+	mrp_netlink_set_ring_role(mrp, BR_MRP_RING_ROLE_DISABLED);
 	mrp_reset_ring_state(mrp);
 
 	if (mrp->in_mode == MRP_IN_MODE_LC)
