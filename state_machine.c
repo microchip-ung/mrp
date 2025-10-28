@@ -2554,6 +2554,7 @@ int mrp_add(uint32_t br_ifindex, uint32_t ring_nr, uint32_t pport,
 	mrp->react_on_link_change = react_on_link_change;
 	mrp->in_mode = in_mode;
 
+	if_get_mac(mrp->ifindex, mrp->ring_mac);
 	if_get_mac(mrp->ifindex, mrp->macaddr);
 
 	/* Initialize the ports */
