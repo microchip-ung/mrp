@@ -3,7 +3,7 @@
 
 project (mrp C)
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.5)
 
 ## libnl ################################################
 find_path(LibNL_INCLUDE_DIR netlink/netlink.h
