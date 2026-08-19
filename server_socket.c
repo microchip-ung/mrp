@@ -23,14 +23,19 @@ static int server_socket(void)
 	int s;
 
 	if(0 > (s = socket(PF_UNIX, SOCK_DGRAM, 0))) {
-		pr_err("Couldn't open unix socket: %d", errno);
+		fprintf(stderr, "mrp_server: couldn't open unix socket: %m\n");
 		return -1;
 	}
 
 	set_socket_address(&sa, MRP_SERVER_SOCK_NAME);
-	
+
 	if(0 != bind(s, (struct sockaddr *)&sa, sizeof(sa))) {
-		pr_err("Couldn't bind socket: %d", errno);
+		if (errno == EADDRINUSE)
+			fprintf(stderr,
+				"mrp_server: an mrp_server is already running in this network namespace\n");
+		else
+			fprintf(stderr,
+				"mrp_server: couldn't bind control socket: %m\n");
 		close(s);
 		return -1;
 	}
