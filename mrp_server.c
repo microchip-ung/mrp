@@ -3,6 +3,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
@@ -68,7 +69,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	ctl_socket_init();
+	if (ctl_socket_init())
+		return EXIT_FAILURE;
+
 	packet_socket_init();
 
 	ev_run(EV_DEFAULT, 0);
