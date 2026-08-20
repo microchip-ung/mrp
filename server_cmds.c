@@ -221,7 +221,7 @@ int CTL_init(void)
 
 void CTL_cleanup(void)
 {
+	mrp_uninit();
 	mrp_netlink_uninit();
 	netlink_uninit();
-	mrp_uninit();
 }
