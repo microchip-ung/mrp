@@ -104,6 +104,7 @@ static void mrp_ring_test_expired(struct ev_loop *loop,
 		goto out;
 
 	mrp->add_test = false;
+	ev_timer_stop(EV_DEFAULT, &mrp->ring_test_work);
 
 out:
 	pthread_mutex_unlock(&mrp->lock);
@@ -231,6 +232,7 @@ static void mrp_in_test_expired(struct ev_loop *loop,
 		goto out;
 
 	mrp->add_test = false;
+	ev_timer_stop(EV_DEFAULT, &mrp->in_test_work);
 
 out:
 	pthread_mutex_unlock(&mrp->lock);
