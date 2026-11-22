@@ -2303,7 +2303,14 @@ void mrp_port_ring_open(struct mrp_port *p, bool loc)
 
 	if (!mrp->p_port->loc ||
 	    !mrp->s_port->loc) {
-		mrp_mrm_recv_ring_test(mrp);
+		/* An MRA that gave way to a better manager is an MRC and
+		 * keeps the stale MRM state of before: running the MRM
+		 * state machine here would block the secondary port of an
+		 * MRC in PT_IDLE (from CHK_RO). The MRC role does not process
+		 * MRP_Test frames either (mrp_should_process).
+		 */
+		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM)
+			mrp_mrm_recv_ring_test(mrp);
 	} else {
 		mrp_ring_open(mrp);
 	}
